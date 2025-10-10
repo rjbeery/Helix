@@ -1,4 +1,43 @@
+COPILOT INSTRUCTIONS:
+You are assisting on a project named Helix. Follow these rules strictly.
+
 # Helix
+Project architecture
+- Monorepo with apps/web (React, Vite, Tailwind), apps/api (FastAPI), packages/{core, engines, personalities, orchestrator, tools, memory, telemetry}, infra/terraform, tests.
+- Engines are provider adapters that share one interface:
+  export interface Engine {
+    id: string
+    model: string
+    complete(input: {
+      messages: {role: 'system'|'user'|'assistant'|'tool', content: string}[]
+      tools?: any[]
+      temperature?: number
+      max_tokens?: number
+    }): Promise<{ text: string; usage?: any; tool_calls?: any[] }>
+  }
+- Personalities are engine-agnostic JSON presets {id, label, avatar, system, defaults?, toolWhitelist?}.
+- Orchestrator merges personality system prompt with user messages and calls Engine.complete. It enforces toolWhitelist.
+- API is JWT protected. /auth/verify returns a JWT. All /v1/* routes require a bearer token.
+
+Coding rules
+- TypeScript: "strict": true. No any unless justified. Prefer explicit types and narrow unions.
+- Python: FastAPI with pydantic models, mypy and ruff clean.
+- Error handling: return typed errors, never swallow exceptions. In the API, raise HTTP 400/401/500 with clear messages.
+- Logging: produce structured logs with trace_id and engine info.
+- Tests: for each new module, create a minimal unit test or contract test.
+
+What to generate
+- Prefer minimal, production-grade code with correct imports and types.
+- For TypeScript files, export types and default implementations.
+- For FastAPI routes, include request and response models.
+- Include TODOs for secrets and environment variables where relevant.
+- Use existing interfaces verbatim. Do not invent new shapes.
+
+Examples
+- If creating packages/engines/openai.ts, implement an Engine class OpenAIEngine with a constructor(model: string, client?: OpenAI). Pass through tools, temperature, and max_tokens to the API call and map the result to {text, usage, tool_calls}.
+- If creating apps/api/routes/turns.py, define POST /v1/turns that validates JWT, parses body {engine, model?, personalityId, messages[], overrides?}, calls orchestrator.runTurn, and returns a typed response.
+
+Do not generate placeholders with nonsense. Generate compilable code that respects the above contracts.
 
 A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
 
