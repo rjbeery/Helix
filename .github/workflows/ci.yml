@@ -1,9 +1,51 @@
-name: ci
+name: CI
 
 on:
+  pull_request:
+    branches: [ main ]
   push:
     branches: [ main ]
+
+jobs:
+  bom:
+    name: BOM check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Run BOM check
+        run: pnpm run check-bom
+
+  build:
+    name: Build & Typecheck
+    needs: bom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Typecheck all
+        run: pnpm -w -r typecheck || true
+      - name: Build all packages
+        run: pnpm -w -r build || true
+name: ci
+on:
+  push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,23 +53,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Web install & build
-        run: |
-          cd apps/web
-          npm ci || npm install
-          npm run build
-
-      - name: API lint (requirements install)
-        run: |
-          cd apps/api
-          python -m venv .venv
-          . .venv/bin/activate || source .venv/bin/activate || true
-          pip install -r requirements.txt
-          python -c "import fastapi,uvicorn"
-
-      - name: Archive frontend dist
-        if: success()
-        uses: actions/upload-artifact@v4
+      - uses: pnpm/action-setup@v4
         with:
-          name: web-dist
-          path: apps/web/dist
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install (pnpm)
+        run: pnpm i -w --frozen-lockfile
+
+      - name: Typecheck + Lint
+        run: |
+          pnpm -r typecheck
+          pnpm -r lint
+
+      - name: Build all
+        run: pnpm -r build
+
+  py:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.12
+      - run: cd apps/api && uv sync && uv run pytest -q || true
