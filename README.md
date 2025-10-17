@@ -1,94 +1,40 @@
-COPILOT INSTRUCTIONS:
-You are assisting on a project named Helix. Follow these rules strictly.
+Helix AI — Project Overview
 
-# Helix
-Project architecture
-- Monorepo with apps/web (React, Vite, Tailwind), apps/api (FastAPI), packages/{core, engines, personalities, orchestrator, tools, memory, telemetry}, infra/terraform, tests.
-- Engines are provider adapters that share one interface:
-  export interface Engine {
-    id: string
-    model: string
-    complete(input: {
-      messages: {role: 'system'|'user'|'assistant'|'tool', content: string}[]
-      tools?: any[]
-      temperature?: number
-      max_tokens?: number
-    }): Promise<{ text: string; usage?: any; tool_calls?: any[] }>
-  }
-- Personalities are engine-agnostic JSON presets {id, label, avatar, system, defaults?, toolWhitelist?}.
-- Orchestrator merges personality system prompt with user messages and calls Engine.complete. It enforces toolWhitelist.
-- API is JWT protected. /auth/verify returns a JWT. All /v1/* routes require a bearer token.
+Purpose
+Helix AI is a demonstration platform built by Rhoderick J. Beery to showcase advanced proficiency in software engineering, systems and infrastructure design, AWS cloud architecture, and applied artificial intelligence. The project unifies these disciplines into a cohesive, production-grade application hosted publicly on GitHub, serving both as a professional portfolio and a technically meaningful product.
 
-Coding rules
-- TypeScript: "strict": true. No any unless justified. Prefer explicit types and narrow unions.
-- Python: FastAPI with pydantic models, mypy and ruff clean.
-- Error handling: return typed errors, never swallow exceptions. In the API, raise HTTP 400/401/500 with clear messages.
-- Logging: produce structured logs with trace_id and engine info.
-- Tests: for each new module, create a minimal unit test or contract test.
+Beyond being a showcase, Helix AI has a functional purpose: it enables multi-agent collaboration among large language models (LLMs). Each agent is configured with a distinct persona, defined by an avatar, prompt specialization, and behavioral parameters. Users can submit questions in two modes.
 
-What to generate
-- Prefer minimal, production-grade code with correct imports and types.
-- For TypeScript files, export types and default implementations.
-- For FastAPI routes, include request and response models.
-- Include TODOs for secrets and environment variables where relevant.
-- Use existing interfaces verbatim. Do not invent new shapes.
+Parallel Mode: The query is sent simultaneously to multiple agents, and their independent responses are displayed side by side for comparison.
+Sequential Mode: The query is passed to the first agent, and its response is then reviewed by subsequent agents. Each reviewer agent must either approve the previous answer or improve it if it can contribute a substantial enhancement.
 
-Examples
-- If creating packages/engines/openai.ts, implement an Engine class OpenAIEngine with a constructor(model: string, client?: OpenAI). Pass through tools, temperature, and max_tokens to the API call and map the result to {text, usage, tool_calls}.
-- If creating apps/api/routes/turns.py, define POST /v1/turns that validates JWT, parses body {engine, model?, personalityId, messages[], overrides?}, calls orchestrator.runTurn, and returns a typed response.
+This architecture allows Helix AI to explore the concept of a meta-AI consensus — aggregating multiple models to refine accuracy, reasoning depth, and creative output.
 
-Do not generate placeholders with nonsense. Generate compilable code that respects the above contracts.
+Infrastructure Overview
+Helix AI is a full-stack, serverless web application built entirely on Amazon Web Services (AWS). It combines a React and TypeScript frontend with a Python FastAPI backend, designed for scalability, security, and cost efficiency.
 
-A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
+Frontend
+The frontend is built with Vite for rapid bundling and deployment. It is hosted as a static site on Amazon S3 and served globally through Amazon CloudFront, with HTTPS provided by AWS Certificate Manager (ACM). DNS management is handled by Amazon Route 53, ensuring low-latency, authoritative routing for both the main domain and the API subdomain.
 
-## Monorepo layout
-```
-apps/
-  web/           # React + Vite + Tailwind UI (passcode gate)
-  api/           # FastAPI backend (Lambda-compatible)
-packages/
-  core/          # shared types, contracts, utilities
-  engines/       # model adapters (OpenAI/Claude/Bedrock stubs)
-  personalities/ # engine-agnostic presets
-  orchestrator/  # merges personality + messages + tools → engine
-  tools/         # tool interfaces (stubs)
-  memory/        # vector memory facade (stubs)
-  telemetry/     # logging, cost, tracing (stubs)
-infra/
-  terraform/     # AWS: S3, CloudFront, API GW, Lambda, Secrets, DDB (stubs)
-tests/           # unit/contract tests
-```
+Backend
+The backend is implemented as a containerized FastAPI service running on AWS Lambda, fronted by Amazon API Gateway for HTTP routing, CORS, and domain management. Docker images are versioned and stored in Amazon Elastic Container Registry (ECR) for reproducible builds and rollbacks. Secrets such as JWT keys, authentication hashes, and API credentials are managed securely through AWS Secrets Manager, with strict IAM role-based access control. The system is event-driven and auto-scaling, ensuring high availability with zero idle compute cost.
 
-## Quick start (local dev)
-### API
-```bash
-cd apps/api
-python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8081
-```
-API runs at http://localhost:8081
+Operations and Deployment
+All infrastructure is defined as code using Terraform, providing reproducible, version-controlled environments. CI/CD pipelines, built with either GitHub Actions or AWS CodeBuild, automate builds, deployments, and CloudFront cache invalidations. Observability and diagnostics are handled by Amazon CloudWatch, which aggregates logs, metrics, and error traces. All data is encrypted at rest using AWS KMS and in transit via TLS 1.2+.
 
-### Web
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-Web runs at http://localhost:5173
+Technology Stack
+Frontend: React, TypeScript, Vite
+Hosting: Amazon S3, CloudFront
+Backend: Python FastAPI
+Compute: AWS Lambda (containerized)
+API Gateway: Amazon API Gateway
+Container Registry: Amazon Elastic Container Registry (ECR)
+Secrets Management: AWS Secrets Manager
+Access Control: AWS Identity and Access Management (IAM)
+Monitoring: Amazon CloudWatch
+Infrastructure as Code: Terraform
+Continuous Integration: GitHub Actions or AWS CodeBuild
+DNS and SSL: Amazon Route 53, AWS Certificate Manager (ACM)
 
-## ENV (local)
-Create `apps/api/.env` (optional) with:
-```
-JWT_SECRET=dev-secret-change-me
-USER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J2
-MASTER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J2
-```
-(These bcrypt hashes are placeholders; generate your own with `python -c "import bcrypt; print(bcrypt.hashpw(b'code', bcrypt.gensalt()).decode())"`.)
-
-## CI/CD
-- GitHub Actions workflow at `.github/workflows/deploy.yml` (skeleton).
-- Terraform stubs under `infra/terraform`.
-
-## License
-MIT (replace as needed).
+Summary
+Helix AI demonstrates a modern, cloud-native application lifecycle — from infrastructure as code and continuous deployment to intelligent agent orchestration. It is globally distributed, serverless, and fully elastic, illustrating advanced proficiency in AWS, containerization, and multi-agent AI system design.
