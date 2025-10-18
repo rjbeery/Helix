@@ -1,0 +1,8 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "API: dev", "type": "shell", "command": "pnpm --filter ./apps/api dev", "problemMatcher": [] },
+    { "label": "WEB: dev", "type": "shell", "command": "pnpm --filter helix-web dev", "problemMatcher": [] },
+    { "label": "ALL: dev", "type": "shell", "command": "pnpm -w dev", "problemMatcher": [] }
+  ]
+}

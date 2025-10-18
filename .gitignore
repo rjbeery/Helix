@@ -1,0 +1,26 @@
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/terraform.tfstate*
+infra/terraform/tfplan*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform/
+node_modules
+# Python (purged)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytype/
+.mypy_cache/
+pytest.ini
+.ruff.toml
+poetry.lock
+pyproject.toml
+requirements*.txt
