@@ -93,3 +93,18 @@ MASTER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J
 ## License
 MIT (replace as needed).
 
+## Local dev (current)
+
+Frontend: Vite + React
+- run: npm install
+- run: npm run dev
+- dev URL: http://localhost:5173
+
+Backend: Node/Express (TypeScript) — to be added in this branch
+- dev proxy: vite.config.ts proxies /api to http://localhost:3001
+- planned scripts: 
+  - npm run api:dev  (tsx watch server.ts)
+  - npm run api:build (tsc)
+  - npm run api:start (node dist/server.js)
+
+Infra: Terraform present, but Terraform state/plan files are ignored
