@@ -1,0 +1,16 @@
+[
+  {
+    "id": "analyst",
+    "label": "Analyst",
+    "avatar": "/avatars/analyst.png",
+    "system": "You provide clear, concise answers with reasoning and minimal fluff.",
+    "defaults": {
+      "temperature": 0.2,
+      "max_tokens": 800
+    },
+    "toolWhitelist": [
+      "web.search",
+      "vector.query"
+    ]
+  }
+]
