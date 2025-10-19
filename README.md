@@ -1,53 +1,52 @@
-COPILOT INSTRUCTIONS:
-You are assisting on a project named Helix. Follow these rules strictly.
+# Helix AI
 
-# Helix
-<<<<<<< HEAD
 A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
 
-Project architecture
+## COPILOT INSTRUCTIONS
+
+You are assisting on a project named Helix. Follow these rules strictly.
+
+### Project architecture
 - Monorepo with apps/web (React, Vite, Tailwind), apps/api (Node/Express TypeScript), packages/{core, engines, personalities, orchestrator, tools, memory, telemetry}, infra/terraform, tests.
-=======
-Project architecture
-- Monorepo with apps/web (React, Vite, Tailwind), apps/api (FastAPI), packages/{core, engines, personalities, orchestrator, tools, memory, telemetry}, infra/terraform, tests.
->>>>>>> origin/main
 - Engines are provider adapters that share one interface:
-  export interface Engine {
-    id: string
-    model: string
-    complete(input: {
-      messages: {role: 'system'|'user'|'assistant'|'tool', content: string}[]
-      tools?: any[]
-    }): Promise<{ text: string; usage?: any; tool_calls?: any[] }>
-  }
+```typescript
+export interface Engine {
+  id: string
+  model: string
+  complete(input: {
+    messages: {role: 'system'|'user'|'assistant'|'tool', content: string}[]
+    tools?: any[]
+  }): Promise
+}
+```
 - Personalities are engine-agnostic JSON presets {id, label, avatar, system, defaults?, toolWhitelist?}.
 - Orchestrator merges personality system prompt with user messages and calls Engine.complete. It enforces toolWhitelist.
 - API is JWT protected. /auth/verify returns a JWT. All /v1/* routes require a bearer token.
 
-Coding rules
+### Coding rules
 - TypeScript: "strict": true. No any unless justified. Prefer explicit types and narrow unions.
-<<<<<<< HEAD
-- Python: Node/Express (TypeScript) with pydantic models, mypy and ruff clean.
-- Error handling: return typed errors, never swallow exceptions. In the API, raise HTTP 400/401/500 with clear messages.
+- Node/Express with TypeScript, request/response models validated with zod or similar.
+- Error handling: return typed errors, never swallow exceptions. In the API, return HTTP 400/401/500 with clear messages.
 - Logging: produce structured logs with trace_id and engine info.
-<<<<<<< HEAD
-- For Node/Express (TypeScript) routes, include request and response models.
 
-Examples
+## Tech Stack
 
+- **Frontend**: Vite + React + Tailwind (passcode gate)
+- **Backend**: Node.js + Express + TypeScript
+- **Database**: PostgreSQL via Prisma ORM
+  - Development: Docker PostgreSQL
+  - Production: Aurora PostgreSQL with pgvector
+- **Authentication**: JWT with bcrypt passcode verification
+- **Infrastructure**: AWS (managed via Terraform)
+  - S3 + CloudFront for frontend
+  - Lambda or Fargate for API
+  - Aurora PostgreSQL + pgvector
+  - Secrets Manager
+  - CloudWatch logs & metrics
 
-<<<<<<< HEAD
----
+## Environment Configuration
 
-- Vite + React + Tailwind (passcode gate)
-- Proxy to API at http://localhost:3001 in vite.config.ts
-- JWT authentication, bcrypt passcode verification
-- Prisma ORM for database
-- PostgreSQL in development via Docker
-- Aurora PostgreSQL (with pgvector) in production
-### Secrets & Configuration
-- Managed via AWS Secrets Manager
-- `.env` for local development:
+`.env` for local development:
 ```
 PORT=3001
 JWT_SECRET=change-me
@@ -55,163 +54,121 @@ TOKEN_TTL=6h
 MASTER_PASS_HASH=$2b$10$...
 FNBO_PASS_HASH=$2b$10$...
 DATABASE_URL=postgresql://helix:helix@localhost:5432/helix?schema=public
-- CloudWatch logs & metrics
-- Structured JSON logs with `trace_id` and engine metadata
+```
 
----
+## Database Schema (Prisma)
 
-- persona_prompt (text)
-- budget_cents (int)
-- prompt (text)
-- avatar_url (string, nullable)
-- model (string)
-- status (enum: active | disabled)
-- cost_cents (int)
-- meta (jsonb)
-- doc_id (string)
-- metadata (jsonb)
+Key tables:
+- users: id, email, persona_prompt, budget_cents, created_at, updated_at
+- personas: id, name, prompt, avatar_url, created_at
+- agents: id, persona_id, model, status (active|disabled), created_at
+- conversations: id, user_id, agent_id, cost_cents, created_at
+- messages: id, conversation_id, role, content, meta (jsonb), created_at
+- documents: id, user_id, doc_id, metadata (jsonb), created_at
 
----
+Budget system:
+- After each call, the API decrements `users.budget_cents`
+- Frontend displays remaining budget and disables controls when exhausted
 
-- After each call, the API decrements `users.budget_cents`.
-- Frontend displays remaining budget and disables controls when exhausted.
-
----
-
-## Monorepo layout
+## Monorepo Layout
+```
 apps/
-web/ # React + Vite + Tailwind UI (passcode gate)
-api/ # Node/Express (TypeScript) backend (Lambda-compatible)
+  web/          # React + Vite + Tailwind UI (passcode gate)
+  api/          # Node/Express TypeScript backend (Lambda-compatible)
 packages/
-core/ # shared types, contracts, utilities
-engines/ # provider adapters (OpenAI/Claude/Bedrock)
-personalities/ # engine-agnostic presets
-orchestrator/ # merges personality + messages + tools → engine
-tools/ # tool interfaces (stubs)
-memory/ # vector memory (pgvector + S3 planned)
-telemetry/ # logging, cost, tracing
+  core/         # shared types, contracts, utilities
+  engines/      # provider adapters (OpenAI/Claude/Bedrock)
+  personalities/# engine-agnostic presets
+  orchestrator/ # merges personality + messages + tools → engine
+  tools/        # tool interfaces (stubs)
+  memory/       # vector memory (pgvector + S3 planned)
+  telemetry/    # logging, cost, tracing
 infra/
-tests/ # unit and contract tests
+  terraform/    # AWS infrastructure as code
+tests/          # unit and contract tests
+```
 
----
+## Quick Start (Local Development)
 
-## Quick start (local dev)
+### Prerequisites
+- Node.js 18+
+- pnpm
+- Docker (for PostgreSQL)
+- PowerShell (Windows) or bash (Unix)
 
-### API
+### Database Setup
+```powershell
+# Start PostgreSQL container
+docker run -d \
+  --name helix-postgres \
+  -e POSTGRES_USER=helix \
+  -e POSTGRES_PASSWORD=helix \
+  -e POSTGRES_DB=helix \
+  -p 5432:5432 \
+  postgres:15-alpine
+```
+
+### API Setup
+```powershell
 cd apps/api
-npm install
-pnpm exec tsx src/server.ts
+pnpm install
+pnpm prisma generate
+pnpm prisma migrate dev
+pnpm dev
+```
 Runs on http://localhost:3001
 
-### Web
+### Web Setup
+```powershell
 cd apps/web
-npm install
-npm run dev
+pnpm install
+pnpm dev
+```
 Runs on http://localhost:5173
+
+Vite proxy configuration in `vite.config.ts` forwards API calls to http://localhost:3001
 
 ## CI/CD
 
-GitHub Actions: build + deploy pipelines (stubs)
-Terraform under infra/terraform provisions:
-S3 + CloudFront (web)
-Lambda or Fargate (API)
-Aurora PostgreSQL + pgvector
-Secrets Manager + CloudWatch
-IAM roles & permissions
+GitHub Actions workflows:
+- `.github/workflows/build.yml` - Build and test
+- `.github/workflows/deploy.yml` - Deploy to AWS
+
+Terraform modules under `infra/terraform/`:
+- S3 + CloudFront (web hosting)
+- API Gateway + Lambda/Fargate (API)
+- Aurora PostgreSQL with pgvector
+- Secrets Manager
+- CloudWatch
+- IAM roles & permissions
 
 ## TODO
 
-Auth
+### Auth
+- [x] Implement bcrypt verification for passcodes
+- [ ] Issue JWTs with TTL using JWT_SECRET
+- [ ] Middleware for all /v1/* routes
 
- Implement bcrypt verification for passcodes
+### Database
+- [ ] Complete Prisma schema and migrations
+- [ ] Seed script with demo user/persona/agent
 
- Issue JWTs with TTL using JWT_SECRET
+### Agents
+- [ ] Provider adapters (OpenAI, Anthropic, Bedrock)
+- [ ] Centralized cost calculator
+- [ ] Ledger + budget decrement logic
+- [ ] Enforce 402 lockout when budget exhausted
 
- Middleware for all /v1/** routes
+### Frontend
+- [ ] Passcode → JWT → route guard
+- [ ] Budget banner + lockout UI
+- [ ] Persona management (prompt + avatar)
+- [ ] Agent invocation interface
 
-Database
-
- Implement Prisma schema and migration
-
- Seed script with demo user/persona/agent
-
-Agents
-
- Provider adapters (OpenAI, Anthropic)
-
- Centralized cost calculator
-
- Ledger + budget decrement logic
-
- Enforce 402 lockout when budget exhausted
-
-Frontend
-
- Passcode → JWT → route guard
-
- Budget banner + lockout UI
-
- Persona management (prompt + avatar)
-
- Agent invocation interface
-
-Infrastructure
-
- AWS Terraform modules (S3, CloudFront, ECS/Lambda, Aurora, Secrets)
-
- GitHub Actions deploy workflow
-=======
-A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
-
-## Monorepo layout
-```
-apps/
-  web/           # React + Vite + Tailwind UI (passcode gate)
-  api/           # FastAPI backend (Lambda-compatible)
-packages/
-  core/          # shared types, contracts, utilities
-  engines/       # model adapters (OpenAI/Claude/Bedrock stubs)
-  personalities/ # engine-agnostic presets
-  orchestrator/  # merges personality + messages + tools → engine
-  tools/         # tool interfaces (stubs)
-  memory/        # vector memory facade (stubs)
-  telemetry/     # logging, cost, tracing (stubs)
-infra/
-  terraform/     # AWS: S3, CloudFront, API GW, Lambda, Secrets, DDB (stubs)
-tests/           # unit/contract tests
-```
-
-## Quick start (local dev)
-### API
-```bash
-cd apps/api
-python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8081
-```
-API runs at http://localhost:8081
-
-### Web
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-Web runs at http://localhost:5173
-
-## ENV (local)
-Create `apps/api/.env` (optional) with:
-```
-JWT_SECRET=dev-secret-change-me
-USER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J2
-MASTER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J2
-```
-(These bcrypt hashes are placeholders; generate your own with `python -c "import bcrypt; print(bcrypt.hashpw(b'code', bcrypt.gensalt()).decode())"`.)
-
-## CI/CD
-- GitHub Actions workflow at `.github/workflows/deploy.yml` (skeleton).
-- Terraform stubs under `infra/terraform`.
+### Infrastructure
+- [ ] AWS Terraform modules (S3, CloudFront, API Gateway, Lambda/ECS, Aurora, Secrets)
+- [ ] GitHub Actions deploy workflow
 
 ## License
-MIT (replace as needed).
->>>>>>> origin/main
+
+MIT
