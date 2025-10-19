@@ -24,3 +24,17 @@ pytest.ini
 poetry.lock
 pyproject.toml
 requirements*.txt
+
+# Node
+node_modules/
+dist/
+.env*
+*.log
+
+# Vite/React build
+apps/web/dist/
+apps/api/dist/
+
+# OS
+.DS_Store
+Thumbs.db
