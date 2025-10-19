@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API (task)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm --filter ./apps/api dev",
+      "preLaunchTask": "API: dev"
+    },
+    {
+      "name": "WEB (task)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm --filter helix-web dev",
+      "preLaunchTask": "WEB: dev"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Dev: API + WEB",
+      "configurations": ["API (task)", "WEB (task)"]
+    }
+  ]
+}
