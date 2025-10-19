@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Terraform
 infra/terraform/.terraform/
 infra/terraform/terraform.tfstate*
@@ -38,3 +39,31 @@ apps/api/dist/
 # OS
 .DS_Store
 Thumbs.db
+=======
+# dependencies
+node_modules
+.pnpm-store
+
+# builds
+dist
+apps/web/dist
+
+# env / secrets
+*.env
+.env
+apps/api/.env
+
+# editors/OS
+.DS_Store
+Thumbs.db
+
+# logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# misc
+.vscode/*
+!.vscode/extensions.json
+>>>>>>> origin/main
