@@ -1,13 +1,12 @@
+
 import "dotenv/config";
-import express from "express";
-import type { Request, Response } from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import type { SignOptions, Secret } from "jsonwebtoken";
+import jwt, { SignOptions, Secret } from "jsonwebtoken";
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
 
 // --- env ---
@@ -69,3 +68,4 @@ app.get("/__routes", (_req, res) => {
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 
 app.listen(PORT, () => console.log(`helix-api listening on ${PORT}`));
+// (removed duplicate app.listen)
