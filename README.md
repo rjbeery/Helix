@@ -2,8 +2,10 @@ COPILOT INSTRUCTIONS:
 You are assisting on a project named Helix. Follow these rules strictly.
 
 # Helix
+A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
+
 Project architecture
-- Monorepo with apps/web (React, Vite, Tailwind), apps/api (Node/Express (TypeScript)), packages/{core, engines, personalities, orchestrator, tools, memory, telemetry}, infra/terraform, tests.
+- Monorepo with apps/web (React, Vite, Tailwind), apps/api (Node/Express TypeScript), packages/{core, engines, personalities, orchestrator, tools, memory, telemetry}, infra/terraform, tests.
 - Engines are provider adapters that share one interface:
   export interface Engine {
     id: string
@@ -39,72 +41,181 @@ Examples
 
 Do not generate placeholders with nonsense. Generate compilable code that respects the above contracts.
 
-A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
+---
+
+## Infrastructure overview
+
+### Frontend
+- Vite + React + Tailwind (passcode gate)
+- Proxy to API at http://localhost:3001 in vite.config.ts
+- In production, hosted on **S3 + CloudFront**
+
+### API
+- Node/Express (TypeScript)
+- JWT authentication, bcrypt passcode verification
+- Prisma ORM for database
+- Hosted on **AWS Lambda or ECS/Fargate**
+
+### Database
+- PostgreSQL in development via Docker
+- Aurora PostgreSQL (with pgvector) in production
+- Prisma schema defines `users`, `personas`, `agents`, `usage_ledger`, and `embeddings`
+
+### Secrets & Configuration
+- Managed via AWS Secrets Manager
+- `.env` for local development:
+```
+PORT=3001
+JWT_SECRET=change-me
+TOKEN_TTL=6h
+MASTER_PASS_HASH=$2b$10$...
+FNBO_PASS_HASH=$2b$10$...
+DATABASE_URL=postgresql://helix:helix@localhost:5432/helix?schema=public
+```
+
+### Observability
+- CloudWatch logs & metrics
+- X-Ray (optional tracing)
+- Structured JSON logs with `trace_id` and engine metadata
+
+---
+
+## Database schema (Prisma)
+
+### users
+- id (cuid, pk)
+- email (unique)
+- name (nullable)
+- avatar_url (string; S3 path)
+- persona_prompt (text)
+- budget_cents (int)
+- created_at, updated_at (timestamps)
+
+### personas
+- id (cuid, pk)
+- user_id (fk → users.id)
+- name (string)
+- prompt (text)
+- avatar_url (string, nullable)
+- created_at, updated_at
+
+### agents
+- id (cuid, pk)
+- user_id (fk → users.id)
+- provider (enum: openai | anthropic | bedrock | local)
+- model (string)
+- status (enum: active | disabled)
+- created_at, updated_at
+
+### usage_ledger
+- id (cuid, pk)
+- user_id (fk)
+- agent_id (fk)
+- input_tokens (int)
+- output_tokens (int)
+- cost_cents (int)
+- meta (jsonb)
+- created_at
+
+### embeddings (for RAG)
+- id (cuid, pk)
+- user_id (fk)
+- doc_id (string)
+- vector (pgvector)
+- metadata (jsonb)
+
+---
+
+## Budgeting system
+
+Each user has a `budget_cents` balance.
+- Every agent call records a row in `usage_ledger` with its `cost_cents`.
+- After each call, the API decrements `users.budget_cents`.
+- If the balance is <= 0, API returns HTTP 402 (Payment Required) and denies further LLM calls.
+- Frontend displays remaining budget and disables controls when exhausted.
+
+---
 
 ## Monorepo layout
-```
 apps/
-  web/           # React + Vite + Tailwind UI (passcode gate)
-  api/           # Node/Express (TypeScript) backend (Lambda-compatible)
+web/ # React + Vite + Tailwind UI (passcode gate)
+api/ # Node/Express (TypeScript) backend (Lambda-compatible)
 packages/
-  core/          # shared types, contracts, utilities
-  engines/       # model adapters (OpenAI/Claude/Bedrock stubs)
-  personalities/ # engine-agnostic presets
-  orchestrator/  # merges personality + messages + tools → engine
-  tools/         # tool interfaces (stubs)
-  memory/        # vector memory facade (stubs)
-  telemetry/     # logging, cost, tracing (stubs)
+core/ # shared types, contracts, utilities
+engines/ # provider adapters (OpenAI/Claude/Bedrock)
+personalities/ # engine-agnostic presets
+orchestrator/ # merges personality + messages + tools → engine
+tools/ # tool interfaces (stubs)
+memory/ # vector memory (pgvector + S3 planned)
+telemetry/ # logging, cost, tracing
 infra/
-  terraform/     # AWS: S3, CloudFront, API GW, Lambda, Secrets, DDB (stubs)
-tests/           # unit/contract tests
-```
+terraform/ # AWS: S3, CloudFront, API GW, Lambda, Secrets, Aurora
+tests/ # unit and contract tests
+
+---
 
 ## Quick start (local dev)
+
 ### API
-```bash
 cd apps/api
-python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-Node runtime main:app --reload --port 8081
-```
-API runs at http://localhost:8081
+npm install
+pnpm exec tsx src/server.ts
+Runs on http://localhost:3001
 
 ### Web
-```bash
 cd apps/web
 npm install
 npm run dev
-```
-Web runs at http://localhost:5173
-
-## ENV (local)
-Create `apps/api/.env` (optional) with:
-```
-JWT_SECRET=dev-secret-change-me
-USER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J2
-MASTER_PASSCODE_HASH=$2b$12$8kLx/4YtW1t4mQj2c7tQMeT2Qm1bW8pY2m0nX7dZ0S8zqzQeTn0J2
-```
-(These bcrypt hashes are placeholders; generate your own with `python -c "import bcrypt; print(bcrypt.hashpw(b'code', bcrypt.gensalt()).decode())"`.)
+Runs on http://localhost:5173
 
 ## CI/CD
-- GitHub Actions workflow at `.github/workflows/deploy.yml` (skeleton).
-- Terraform stubs under `infra/terraform`.
 
-## License
-MIT (replace as needed).
+GitHub Actions: build + deploy pipelines (stubs)
+Terraform under infra/terraform provisions:
+S3 + CloudFront (web)
+Lambda or Fargate (API)
+Aurora PostgreSQL + pgvector
+Secrets Manager + CloudWatch
+IAM roles & permissions
 
-## Local dev (current)
+## TODO
 
-Frontend: Vite + React
-- run: npm install
-- run: npm run dev
-- dev URL: http://localhost:5173
+Auth
 
-Backend: Node/Express (TypeScript) — to be added in this branch
-- dev proxy: vite.config.ts proxies /api to http://localhost:3001
-- planned scripts: 
-  - npm run api:dev  (tsx watch server.ts)
-  - npm run api:build (tsc)
-  - npm run api:start (node dist/server.js)
+ Implement bcrypt verification for passcodes
 
-Infra: Terraform present, but Terraform state/plan files are ignored
+ Issue JWTs with TTL using JWT_SECRET
+
+ Middleware for all /v1/** routes
+
+Database
+
+ Implement Prisma schema and migration
+
+ Seed script with demo user/persona/agent
+
+Agents
+
+ Provider adapters (OpenAI, Anthropic)
+
+ Centralized cost calculator
+
+ Ledger + budget decrement logic
+
+ Enforce 402 lockout when budget exhausted
+
+Frontend
+
+ Passcode → JWT → route guard
+
+ Budget banner + lockout UI
+
+ Persona management (prompt + avatar)
+
+ Agent invocation interface
+
+Infrastructure
+
+ AWS Terraform modules (S3, CloudFront, ECS/Lambda, Aurora, Secrets)
+
+ GitHub Actions deploy workflow
