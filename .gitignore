@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-# Terraform
+# --- Terraform ---
 infra/terraform/.terraform/
 infra/terraform/terraform.tfstate*
 infra/terraform/tfplan*
@@ -12,8 +11,38 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 .terraform/
-node_modules
-# Python (purged)
+
+# --- Node / pnpm ---
+node_modules/
+.pnpm-store/
+
+# --- Builds ---
+dist/
+apps/web/dist/
+apps/api/dist/
+
+# --- Env / Secrets ---
+.env
+.env.*
+*.env
+apps/**/.env
+!.env.example
+!apps/**/.env.example
+
+# --- Logs ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Editors / OS ---
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# --- Python (legacy) ---
 __pycache__/
 *.pyc
 *.pyo
@@ -25,45 +54,3 @@ pytest.ini
 poetry.lock
 pyproject.toml
 requirements*.txt
-
-# Node
-node_modules/
-dist/
-.env*
-*.log
-
-# Vite/React build
-apps/web/dist/
-apps/api/dist/
-
-# OS
-.DS_Store
-Thumbs.db
-=======
-# dependencies
-node_modules
-.pnpm-store
-
-# builds
-dist
-apps/web/dist
-
-# env / secrets
-*.env
-.env
-apps/api/.env
-
-# editors/OS
-.DS_Store
-Thumbs.db
-
-# logs
-npm-debug.log*
-pnpm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# misc
-.vscode/*
-!.vscode/extensions.json
->>>>>>> origin/main
