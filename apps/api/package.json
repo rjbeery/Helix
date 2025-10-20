@@ -4,20 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "ts-node --esm src/server.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma": "prisma"
   },
   "dependencies": {
+    "@prisma/client": "^6.17.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "serverless-http": "^4.0.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@prisma/client": "^6.17.1",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "^2.8.19",

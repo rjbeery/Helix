@@ -51,8 +51,8 @@ export interface Engine {
 PORT=3001
 JWT_SECRET=change-me
 TOKEN_TTL=6h
-MASTER_PASS_HASH=$2b$10$...
-FNBO_PASS_HASH=$2b$10$...
+MASTER_PASS_HASH=<BCRYPT_HASH_IN_.ENV>
+GUEST_PASS_HASH=<BCRYPT_HASH_IN_.ENV>
 DATABASE_URL=postgresql://helix:helix@localhost:5432/helix?schema=public
 ```
 
