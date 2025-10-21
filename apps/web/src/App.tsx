@@ -1,126 +1,132 @@
-<<<<<<< HEAD
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
+
+type VerifyResponse = { ok: true; user: { sub: string; role: "master" | "guest" } };
+type LoginResponse = { token: string };
+type MeResponse = { userId: string; role: "master" | "guest" };
+
+const API_BASE = import.meta.env.VITE_API_URL ?? ""; // "" in dev (Vite proxy), full URL in prod
 
 export default function App() {
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string|null>(null);
-  const [ok, setOk] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setToken] = useState<string | null>(null);
+  const [status, setStatus] = useState<string>("");
+  const [user, setUser] = useState<{ sub: string; role: "master" | "guest" } | null>(null);
 
-  const submit = async () => {
-    setError(null);
-    const r = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ passphrase: code })
-    });
-    if (r.ok) setOk(true); else setError("Invalid code");
-  };
+  useEffect(() => {
+    const t = localStorage.getItem("helix.token");
+    if (t) setToken(t);
+  }, []);
 
-  if (ok) return <div className="p-8 text-green-400">Authenticated. Build your UI here.</div>;
-
-  return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-8">
-      <h1 className="text-2xl font-semibold">Helix</h1>
-      <div className="mt-4 flex gap-2">
-        <input
-          className="px-3 py-2 bg-gray-900 border border-gray-700 rounded"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Access code"
-        />
-        <button onClick={submit} className="px-4 py-2 rounded bg-teal-600 hover:bg-teal-500">Go</button>
-      </div>
-      {error && <p className="mt-2 text-red-400">{error}</p>}
-=======
-import { useState } from "react";
-import { verifyPasscode } from "./lib/api";
-
-const TOKEN_KEY = "helix.jwt";
-const ROLE_KEY = "helix.role";
-
-export default function App() {
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState(false);
-
-  const onSubmit = async (e: React.FormEvent) => {
+  async function login(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
-    setLoading(true);
-    const form = new FormData(e.target as HTMLFormElement);
-    const role = (form.get("role") as string) as "master" | "fnbo";
-    const passcode = String(form.get("passcode") || "").trim();
+    setStatus("Logging in…");
     try {
-      const { token, role: r } = await verifyPasscode(passcode, role || "master");
-      localStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(ROLE_KEY, r);
-      setOk(true);
-    } catch (e: any) {
-      setErr(e.message || "Auth failed");
-    } finally {
-      setLoading(false);
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) throw new Error(`Login failed (${res.status})`);
+      const data: LoginResponse = await res.json();
+      localStorage.setItem("helix.token", data.token);
+      setToken(data.token);
+      setStatus("Login OK");
+    } catch (err: any) {
+      setStatus(err.message || "Login error");
     }
-  };
+  }
 
-  if (ok || localStorage.getItem(TOKEN_KEY)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="w-full max-w-md border rounded-2xl p-6 text-center space-y-3">
-          <img src="/helix.svg" alt="Helix AI" className="h-8 mx-auto" />
-          <h1 className="text-xl font-semibold">Unlocked</h1>
-          <p className="opacity-70">You’re signed in. Replace this with your app.</p>
-          <button
-            onClick={() => {
-              localStorage.removeItem(TOKEN_KEY);
-              localStorage.removeItem(ROLE_KEY);
-              location.reload();
-            }}
-            className="mt-2 border rounded-lg px-3 py-2"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    );
+  async function verify() {
+    if (!token) return setStatus("No token");
+    setStatus("Verifying…");
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Verify failed (${res.status})`);
+      const data: VerifyResponse = await res.json();
+      setUser(data.user);
+      setStatus("Token valid");
+    } catch (err: any) {
+      setStatus(err.message || "Verify error");
+    }
+  }
+
+  async function me() {
+    if (!token) return setStatus("No token");
+    setStatus("Loading /v1/me…");
+    try {
+      const res = await fetch(`${API_BASE}/v1/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`/v1/me failed (${res.status})`);
+      const data: MeResponse = await res.json();
+      setUser({ sub: data.userId, role: data.role });
+      setStatus("/v1/me OK");
+    } catch (err: any) {
+      setStatus(err.message || "/v1/me error");
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("helix.token");
+    setToken(null);
+    setUser(null);
+    setStatus("Logged out");
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={onSubmit} className="w-full max-w-md border rounded-2xl p-6 space-y-4">
-        <div className="flex items-center justify-center">
-          <img src="/helix.svg" alt="Helix AI" className="h-8" />
-        </div>
+    <div style={{ maxWidth: 520, margin: "40px auto", fontFamily: "system-ui, sans-serif" }}>
+      <h1 style={{ marginBottom: 8 }}>Helix AI</h1>
+      <p style={{ marginTop: 0, color: "#666" }}>
+        Dev proxy: /auth and /v1 → API on 3001. In prod, set VITE_API_URL.
+      </p>
 
-        <div className="space-y-1">
-          <label className="text-sm">Role</label>
-          <select name="role" defaultValue="master" className="w-full border rounded px-3 py-2">
-            <option value="master">master</option>
-            <option value="fnbo">fnbo</option>
-          </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm">Passcode</label>
+      {!token ? (
+        <form onSubmit={login} style={{ display: "grid", gap: 8, marginTop: 16 }}>
           <input
-            name="passcode"
-            type="password"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             required
-            className="w-full border rounded px-3 py-2"
-            autoFocus
+            autoComplete="username"
           />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <button type="submit">Log in</button>
+        </form>
+      ) : (
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+          <button onClick={verify}>Verify token</button>
+          <button onClick={me}>/v1/me</button>
+          <button onClick={logout}>Log out</button>
         </div>
+      )}
 
-        {err && <div className="text-red-600 text-sm">{err}</div>}
+      <div style={{ marginTop: 16, fontSize: 14 }}>
+        <strong>Status:</strong> {status || "—"}
+      </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg px-3 py-2 border hover:bg-black/5 disabled:opacity-50"
-        >
-          {loading ? "Checking..." : "Unlock"}
-        </button>
-      </form>
->>>>>>> origin/main
+      <div style={{ marginTop: 16, fontSize: 14 }}>
+        <strong>User:</strong>{" "}
+        {user ? (
+          <code>{JSON.stringify(user)}</code>
+        ) : (
+          <span style={{ color: "#999" }}>none</span>
+        )}
+      </div>
+
+      <div style={{ marginTop: 16, fontSize: 12, color: "#999" }}>
+        API_BASE: <code>{API_BASE || "(proxy)"}</code>
+      </div>
     </div>
   );
 }

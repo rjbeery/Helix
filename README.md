@@ -49,11 +49,11 @@ export interface Engine {
 `.env` for local development:
 ```
 PORT=3001
-JWT_SECRET=change-me
+JWT_SECRET=your-long-random-secret
 TOKEN_TTL=6h
-MASTER_PASS_HASH=<BCRYPT_HASH_IN_.ENV>
-GUEST_PASS_HASH=<BCRYPT_HASH_IN_.ENV>
-DATABASE_URL=postgresql://helix:helix@localhost:5432/helix?schema=public
+DATABASE_URL=postgresql://USER:PASS@HOST:5432/DB?schema=public
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 ```
 
 ## Database Schema (Prisma)

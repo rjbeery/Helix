@@ -1,14 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-<<<<<<< HEAD
 
 export default defineConfig({
   plugins: [react()],
-=======
-import tsconfigPaths from "vite-tsconfig-paths";
-
-export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
->>>>>>> origin/main
-  server: { proxy: { "/api": "http://localhost:3001" } }
+  server: {
+    port: 5173,
+    open: false,
+    proxy: {
+      "/auth": { target: "http://localhost:3001", changeOrigin: true },
+      "/v1":   { target: "http://localhost:3001", changeOrigin: true },
+    },
+  },
 });
