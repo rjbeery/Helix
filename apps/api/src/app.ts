@@ -1,16 +1,18 @@
-import express from 'express'
-import { auth } from './routes/auth'
-import { requireAuth } from './middleware/requireAuth'
+import express from "express";
+import cors from "cors";
+import auth from "./routes/auth";
+import { requireAuth, type AuthedRequest } from "./middleware/requireAuth";
 
-export const app = express()
+export const app = express();
 
-app.use(express.json())
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(express.json());
 
-// routes
-app.get('/health', (_req, res) => res.json({ ok: true }))
-app.use('/auth', auth)
-app.get('/v1/me', requireAuth, (req, res) => {
-  res.json({ userId: (req as any).user.sub, role: (req as any).user.role })
-})
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
-// export only — no app.listen() here
+app.use("/auth", auth);
+
+app.get("/v1/me", requireAuth, (req, res) => {
+  const u = (req as AuthedRequest).user!;
+  res.json({ userId: u.sub, role: u.role });
+});
