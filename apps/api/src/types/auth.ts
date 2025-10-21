@@ -1,2 +1,5 @@
 export type Role = "master" | "guest";
-export interface JwtUser { sub: string; role: Role }
+export interface JwtUser {
+  sub: string;
+  role: Role;
+}
