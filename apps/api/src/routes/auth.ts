@@ -1,38 +1,37 @@
-import { Router } from "express";
-import * as jwt from "jsonwebtoken";
-import * as bcrypt from "bcryptjs";
-import pkg from "@prisma/client";
-import { z } from "zod";
+import { Request, Response, NextFunction } from "express";
+import * as jwtRaw from "jsonwebtoken";
+const jwt = (jwtRaw as any).default ?? (jwtRaw as any); // same shim as auth.ts
 import type { Role } from "../types/auth";
 
-const { PrismaClient } = pkg;
-const prisma = new PrismaClient();
-export const auth = Router();
+export interface AuthedRequest extends Request {
+  user?: { sub: string; role: Role };
+}
 
-const LoginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-});
-
-auth.post("/login", async (req, res) => {
-  const parsed = LoginSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
-
-  const { email, password } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return res.status(401).json({ error: "Invalid credentials" });
-
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+  const [scheme, token] = (req.headers.authorization ?? "").split(" ");
+  if (scheme !== "Bearer" || !token) {
+    return res.status(401).json({ error: "Missing bearer token" });
+  }
 
   const secret = process.env.JWT_SECRET;
-  if (!secret) return res.status(500).json({ error: "Server misconfigured: missing JWT_SECRET" });
+  if (!secret) {
+    return res.status(500).json({ error: "Server misconfigured: missing JWT_SECRET" });
+  }
 
-  // Coerce/normalize role to our public set (no “fnbo” anywhere)
-  const role: Role = user.role === "master" ? "master" : "guest";
+  try {
+    const decoded = jwt.verify(token, secret) as jwt.JwtPayload | string;
+    if (typeof decoded !== "object" || !decoded) {
+      return res.status(401).json({ error: "Invalid token payload" });
+    }
 
-  const ttl = process.env.TOKEN_TTL || "6h";
-  const token = jwt.sign({ sub: user.id, role }, secret, { expiresIn: ttl });
+    const { sub, role } = decoded as { sub?: string; role?: Role };
+    if (!sub || (role !== "master" && role !== "guest")) {
+      return res.status(401).json({ error: "Invalid token payload" });
+    }
 
-  return res.json({ token });
-});
+    req.user = { sub, role };
+    next();
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
