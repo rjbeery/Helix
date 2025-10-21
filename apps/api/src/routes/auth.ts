@@ -1,12 +1,12 @@
 import { Router } from "express";
 import * as bcrypt from "bcryptjs";
 import * as jwtRaw from "jsonwebtoken";
+const jwt = (jwtRaw as any).default ?? (jwtRaw as any); // compat shim
 import pkg from "@prisma/client";
 import { z } from "zod";
 import type { Role } from "../types/auth";
 import { requireAuth } from "../middleware/requireAuth";
 
-const jwt = (jwtRaw as any).default ?? (jwtRaw as any);
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
@@ -35,7 +35,7 @@ auth.post("/login", async (req, res) => {
   const ttl = process.env.TOKEN_TTL || "6h";
 
   const token = jwt.sign({ sub: user.id, role }, secret, { expiresIn: ttl });
-  res.json({ token });
+  return res.json({ token });
 });
 
 auth.get("/verify", requireAuth, (req, res) => {

@@ -1,4 +1,3 @@
-// apps/api/scripts/ensureAdmin.ts
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import pkg from "@prisma/client";
