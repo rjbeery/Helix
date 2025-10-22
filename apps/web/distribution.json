@@ -1,0 +1,31 @@
+{
+  "CallerReference": "1761161283",
+  "Comment": "Helix demo",
+  "Enabled": true,
+  "Origins": {
+    "Quantity": 1,
+    "Items": [{
+      "Id": "s3-website-helix-demo-site",
+      "DomainName": "helix-demo-site.s3-website-us-east-1.amazonaws.com",
+      "CustomOriginConfig": {
+        "HTTPPort": 80,
+        "HTTPSPort": 443,
+        "OriginProtocolPolicy": "http-only",
+        "OriginSSLProtocols": { "Quantity": 1, "Items": ["TLSv1.2"] }
+      }
+    }]
+  },
+  "DefaultRootObject": "index.html",
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "s3-website-helix-demo-site",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "TrustedSigners": { "Enabled": false, "Quantity": 0 },
+    "TrustedKeyGroups": { "Enabled": false, "Quantity": 0 },
+    "AllowedMethods": { "Quantity": 2, "Items": ["GET","HEAD"], "CachedMethods": { "Quantity": 2, "Items": ["GET","HEAD"] } },
+    "Compress": true,
+    "ForwardedValues": { "QueryString": false, "Cookies": { "Forward": "none" } },
+    "MinTTL": 0, "DefaultTTL": 3600, "MaxTTL": 86400
+  },
+  "PriceClass": "PriceClass_100",
+  "IsIPV6Enabled": true
+}
