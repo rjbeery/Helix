@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwtRaw from "jsonwebtoken";
 const jwt = (jwtRaw as any).default ?? (jwtRaw as any); // compat shim
-import type { Role } from "../types/auth";
+import type { JwtPayload } from "jsonwebtoken";
+import type { Role } from "../types/auth.js";
 
 export interface AuthedRequest extends Request {
   user?: { sub: string; role: Role };
@@ -19,7 +20,7 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   }
 
   try {
-    const decoded = jwt.verify(token, secret) as jwt.JwtPayload | string;
+    const decoded = jwt.verify(token, secret) as JwtPayload | string;
     if (typeof decoded !== "object" || !decoded) {
       return res.status(401).json({ error: "Invalid token payload" });
     }

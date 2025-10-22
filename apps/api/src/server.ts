@@ -1,5 +1,4 @@
-import "dotenv/config";
-import { app } from "./app";
+import { app } from "./app.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {
@@ -7,8 +6,4 @@ app.listen(PORT, () => {
   console.log(`📝 Health:  http://localhost:${PORT}/health`);
   console.log(`🔐 Login:   POST http://localhost:${PORT}/auth/login`);
 });
-// server.ts
-if (process.env.NODE_ENV !== 'production') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  require('dotenv').config();
-}
+// In containers, env vars are provided by docker-compose; no dotenv needed at runtime.

@@ -1,7 +1,8 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: helix-pg
+    restart: unless-stopped
     environment:
       POSTGRES_USER: helix
       POSTGRES_PASSWORD: helix
@@ -9,27 +10,37 @@ services:
     ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U helix -d helix"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   api:
     build:
-      context: .            # build from repo root (monorepo)
-      dockerfile: apps/api/Dockerfile
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: helix-api
+    restart: unless-stopped
+    env_file:
+      - apps/api/.env          # put secrets here
     environment:
-      PORT: 3001
-      JWT_SECRET: change-me-long-random
-      TOKEN_TTL: 6h
-      DATABASE_URL: postgresql://helix:helix@db:5432/helix?schema=public
-      ADMIN_EMAIL: rjbeery@gmail.com
-      ADMIN_PASSWORD: Helix5678!!
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
     ports: ["3001:3001"]
-    depends_on: [db]
 
   web:
     build:
-      context: .            # build from repo root (monorepo)
+      context: .
       dockerfile: apps/web/Dockerfile
+    container_name: helix-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
     ports: ["5173:80"]
-    depends_on: [api]
 
 volumes:
   pgdata:
