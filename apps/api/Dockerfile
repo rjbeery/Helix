@@ -1,5 +1,6 @@
 FROM node:20-alpine
 WORKDIR /workspace
+ENV CI=true
 # Make pnpm available in this container
 RUN corepack enable
 
