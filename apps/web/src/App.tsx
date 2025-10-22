@@ -18,7 +18,7 @@ export default function App() {
     const t = localStorage.getItem("helix.token");
     if (t) setToken(t);
   }, []);
-
+/*
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setStatus("Logging in…");
@@ -37,6 +37,19 @@ export default function App() {
       setStatus(err.message || "Login error");
     }
   }
+*/
+async function login(e: React.FormEvent) {
+  e.preventDefault();
+  setStatus("Logging in…");
+  // Demo: always succeed
+  const demoToken = "demo.jwt.token";
+  localStorage.setItem("helix.token", demoToken);
+  setToken(demoToken);
+  setUser({ sub: "guest", role: "guest" });
+  setStatus("Login OK");
+  // Go to static agent page
+  window.location.assign("/agent.html");
+}
 
   async function verify() {
     if (!token) return setStatus("No token");
