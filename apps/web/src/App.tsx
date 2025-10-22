@@ -100,16 +100,11 @@ export default function App() {
               alt="Helix AI Logo"
               style={{
                 width: "400px",
-                height: "400px",
+                height: "200px",
                 filter: "drop-shadow(0 2px 4px rgba(0, 209, 255, 0.3))", // Matches theme-color #00d1ff
               }}
             />
           </div>
-
-          
-          <h1 style={{ marginTop: 16, marginBottom: 8, fontSize: "28px", fontWeight: 600, textAlign: "center" }}>
-            Helix AI
-          </h1>
           <p
             style={{
               marginTop: 0,
