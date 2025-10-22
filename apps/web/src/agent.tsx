@@ -15,7 +15,7 @@ function AgentPreview() {
       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
     }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-        <img src={HelixLogoTagline} alt="Helix AI Logo" style={{ width: 64, height: 64 }} />
+        <img src={HelixLogoTagline} alt="Helix AI Logo" style={{ width: 400, height: 200 }} />
       </div>
       <h1 style={{ textAlign: 'center', margin: 0 }}>Agent Preview</h1>
       <p style={{ textAlign: 'center', color: '#a0a0a0' }}>

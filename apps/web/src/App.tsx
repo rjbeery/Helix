@@ -145,7 +145,7 @@ async function login(e: React.FormEvent) {
               }}
             />
           </div>
-
+{/*
           <div
             style={{
               display: "flex",
@@ -207,7 +207,7 @@ async function login(e: React.FormEvent) {
               Log out
             </button>
           </div>
-
+*/}
           <p
             style={{
               marginTop: 0,
