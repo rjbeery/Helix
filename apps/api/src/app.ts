@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-import auth from "./routes/auth";
-import { requireAuth, type AuthedRequest } from "./middleware/requireAuth";
+import auth from "./routes/auth.js";
+import { requireAuth, type AuthedRequest } from "./middleware/requireAuth.js";
 
 export const app = express();
 

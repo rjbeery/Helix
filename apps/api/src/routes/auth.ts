@@ -4,8 +4,8 @@ import * as jwtRaw from "jsonwebtoken";
 const jwt = (jwtRaw as any).default ?? (jwtRaw as any); // compat shim
 import pkg from "@prisma/client";
 import { z } from "zod";
-import type { Role } from "../types/auth";
-import { requireAuth } from "../middleware/requireAuth";
+import type { Role } from "../types/auth.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
