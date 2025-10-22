@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    container_name: helix-pg
+    environment:
+      POSTGRES_USER: helix
+      POSTGRES_PASSWORD: helix
+      POSTGRES_DB: helix
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .            # build from repo root (monorepo)
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PORT: 3001
+      JWT_SECRET: change-me-long-random
+      TOKEN_TTL: 6h
+      DATABASE_URL: postgresql://helix:helix@db:5432/helix?schema=public
+      ADMIN_EMAIL: rjbeery@gmail.com
+      ADMIN_PASSWORD: Helix5678!!
+    ports: ["3001:3001"]
+    depends_on: [db]
+
+  web:
+    build:
+      context: .            # build from repo root (monorepo)
+      dockerfile: apps/web/Dockerfile
+    ports: ["5173:80"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
