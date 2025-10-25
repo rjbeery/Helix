@@ -18,7 +18,31 @@ export default function App() {
     const t = localStorage.getItem("helix.token");
     if (t) setToken(t);
   }, []);
-/*
+
+  // Helper to verify a specific token and update user
+  async function verifyNow(tok: string) {
+    setStatus("Verifying…");
+    try {
+      const res = await fetch(`${API_BASE}/auth/verify`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      if (!res.ok) throw new Error(`Verify failed (${res.status})`);
+      const data: VerifyResponse = await res.json();
+      setUser(data.user);
+      setStatus("Token valid");
+    } catch (err: any) {
+      setStatus(err.message || "Verify error");
+    }
+  }
+
+  // When a token is present (from storage or fresh login), auto-verify to populate user
+  useEffect(() => {
+    if (token) {
+      verifyNow(token);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setStatus("Logging in…");
@@ -33,38 +57,16 @@ export default function App() {
       localStorage.setItem("helix.token", data.token);
       setToken(data.token);
       setStatus("Login OK");
+      // Immediately verify to populate role on the page
+      await verifyNow(data.token);
     } catch (err: any) {
       setStatus(err.message || "Login error");
     }
   }
-*/
-async function login(e: React.FormEvent) {
-  e.preventDefault();
-  setStatus("Logging in…");
-  // Demo: always succeed
-  const demoToken = "demo.jwt.token";
-  localStorage.setItem("helix.token", demoToken);
-  setToken(demoToken);
-  setUser({ sub: "guest", role: "guest" });
-  setStatus("Login OK");
-  // Go to static agent page
-  window.location.assign("/agent.html");
-}
 
   async function verify() {
     if (!token) return setStatus("No token");
-    setStatus("Verifying…");
-    try {
-      const res = await fetch(`${API_BASE}/auth/verify`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`Verify failed (${res.status})`);
-      const data: VerifyResponse = await res.json();
-      setUser(data.user);
-      setStatus("Token valid");
-    } catch (err: any) {
-      setStatus(err.message || "Verify error");
-    }
+    return verifyNow(token);
   }
 
   async function me() {
@@ -107,15 +109,11 @@ async function login(e: React.FormEvent) {
       {!token ? (
         <>
           {/* Logo placed at the very top of the login area with tighter spacing */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
             <img
               src={HelixLogoTagline}
               alt="Helix AI Logo"
-              style={{
-                width: "400px",
-                height: "200px",
-                filter: "drop-shadow(0 2px 4px rgba(0, 209, 255, 0.3))", // Matches theme-color #00d1ff
-              }}
+              style={{ maxWidth: "100%", height: "auto" }}
             />
           </div>
           <p
@@ -139,8 +137,8 @@ async function login(e: React.FormEvent) {
               src={HelixLogoTagline}
               alt="Helix AI Logo"
               style={{
-                width: "64px",
-                height: "64px",
+                width: "400px",
+                height: "200px",
                 filter: "drop-shadow(0 2px 4px rgba(0, 209, 255, 0.3))",
               }}
             />
@@ -223,58 +221,60 @@ async function login(e: React.FormEvent) {
         </>
       )}
 
-          <form onSubmit={login} style={{ display: "grid", gap: "12px", marginTop: 8 }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="username"
-            style={{
-              padding: "12px",
-              backgroundColor: "#2a2a2a",
-              color: "#ffffff",
-              border: "1px solid #444",
-              borderRadius: "8px",
-              fontSize: "16px",
-            }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            style={{
-              padding: "12px",
-              backgroundColor: "#2a2a2a",
-              color: "#ffffff",
-              border: "1px solid #444",
-              borderRadius: "8px",
-              fontSize: "16px",
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              padding: "12px",
-              backgroundColor: "#00d1ff", // Matches theme-color from index.html
-              color: "#1a1a1a",
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "16px",
-              fontWeight: 500,
-              cursor: "pointer",
-              transition: "background-color 0.2s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#00b3d9")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#00d1ff")}
-          >
-            Log in
-          </button>
-          </form>
+          {!token && (
+            <form onSubmit={login} style={{ display: "grid", gap: "12px", marginTop: 8 }}>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="username"
+                style={{
+                  padding: "12px",
+                  backgroundColor: "#2a2a2a",
+                  color: "#ffffff",
+                  border: "1px solid #444",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                style={{
+                  padding: "12px",
+                  backgroundColor: "#2a2a2a",
+                  color: "#ffffff",
+                  border: "1px solid #444",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  padding: "12px",
+                  backgroundColor: "#00d1ff", // Matches theme-color from index.html
+                  color: "#1a1a1a",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#00b3d9")}
+                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#00d1ff")}
+              >
+                Log in
+              </button>
+            </form>
+          )}
 
       <div style={{ marginTop: 24, fontSize: "14px", textAlign: "center" }}>
         <strong>Status:</strong> {status || "—"}
@@ -290,12 +290,34 @@ async function login(e: React.FormEvent) {
               borderRadius: "4px",
             }}
           >
-            {JSON.stringify(user)}
+            {user.role === "master" ? "admin" : "guest"}
           </code>
         ) : (
           <span style={{ color: "#a0a0a0" }}>none</span>
         )}
       </div>
+
+      {token && (
+        <div style={{ marginTop: 16, textAlign: "center" }}>
+          <button
+            onClick={logout}
+            style={{
+              padding: "10px 16px",
+              backgroundColor: "#dc3545",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "14px",
+              cursor: "pointer",
+              transition: "background-color 0.2s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#a71d2a")}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#dc3545")}
+          >
+            Log out
+          </button>
+        </div>
+      )}
 
       <div style={{ marginTop: 16, fontSize: "12px", color: "#a0a0a0", textAlign: "center" }}>
         API_BASE: <code style={{ backgroundColor: "#2a2a2a", padding: "2px 6px", borderRadius: "4px" }}>

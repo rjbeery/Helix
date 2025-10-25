@@ -26,6 +26,8 @@ services:
       - apps/api/.env          # put secrets here
     environment:
       NODE_ENV: production
+      # Override DB host for container networking (service name "db")
+      DATABASE_URL: postgresql://helix:helix@db:5432/helix?schema=public
     depends_on:
       db:
         condition: service_healthy
