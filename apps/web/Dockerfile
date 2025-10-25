@@ -9,6 +9,10 @@ COPY . .
 # Install deps and build the web app
 WORKDIR /workspace/apps/web
 RUN pnpm install --frozen-lockfile --filter helix-web...
+
+# Allow overriding API base at build time; default works for local docker compose
+ARG VITE_API_URL=http://localhost:3001
+ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm build
 
 FROM nginx:alpine
