@@ -21,6 +21,7 @@ param(
   [string]$AwsRegion  = '',
   [string]$Bucket     = 'helixai-site-helixai-live',
   [string]$DistId     = 'E1WTW4Q4V8UY5C',
+  [string]$WebApiBase = 'https://api.helixai.live',
 
   # Optional: push docker images to ECR
   [string]$EcrAccountId = '',
@@ -33,11 +34,10 @@ param(
   [switch]$SkipEcrPush
 )
 
-function Join-AwsArgs { param($p, $r) $parts = @(); if ($p) { $parts += "--profile $p" }; if ($r) { $parts += "--region $r" }; return $parts -join ' ' }
+function New-AwsCommonArgs { param($p, $r) $arr = @(); if ($p) { $arr += @('--profile', $p) }; if ($r) { $arr += @('--region', $r) }; return ,$arr }
 
-$awsArgs = Join-AwsArgs $AwsProfile $AwsRegion
-$aws = 'aws'
-if ($awsArgs) { $aws += " $awsArgs" }
+$awsCmd = 'aws'
+$awsCommonArgs = New-AwsCommonArgs $AwsProfile $AwsRegion
 
 Write-Host "Starting full deploy: build -> images -> push -> s3 sync -> cloudfront invalidate"
 
@@ -46,6 +46,8 @@ try {
     Write-Host "Building web dist (apps/web)..."
     Push-Location 'apps/web'
     pnpm install
+    # Ensure Vite has the production API base
+    $env:VITE_API_URL = $WebApiBase
     pnpm build
     Pop-Location
   } else {
@@ -63,9 +65,9 @@ try {
     if (-not $AwsRegion) { throw "To push to ECR you must provide -AwsRegion and -EcrAccountId" }
 
     $ecrHost = "$EcrAccountId.dkr.ecr.$AwsRegion.amazonaws.com"
-    Write-Host "Logging into ECR: $ecrHost (profile: $AwsProfile)"
-    # Login
-    & aws $awsArgs ecr get-login-password | docker login --username AWS --password-stdin $ecrHost
+  Write-Host "Logging into ECR: $ecrHost (profile: $AwsProfile)"
+  # Login
+  & $awsCmd @awsCommonArgs ecr get-login-password | docker login --username AWS --password-stdin $ecrHost
 
     if ($EcrApiRepo) {
       $localApiImage = 'helixsource-api:latest'
@@ -92,8 +94,8 @@ try {
   $deployScript = Join-Path (Get-Location) 'deploy-frontend.ps1'
   if (-not (Test-Path $deployScript)) { throw "deploy-frontend.ps1 not found at $deployScript" }
 
-  Write-Host "Running frontend deploy script: deploy-frontend.ps1 -Bucket $Bucket -DistId $DistId -Profile $Profile -Region $Region"
-  & $deployScript -Bucket $Bucket -DistId $DistId -Profile $Profile -Region $Region
+  Write-Host "Running frontend deploy script: deploy-frontend.ps1 -Bucket $Bucket -DistId $DistId -AwsProfile $AwsProfile -AwsRegion $AwsRegion"
+  & $deployScript -Bucket $Bucket -DistId $DistId -AwsProfile $AwsProfile -AwsRegion $AwsRegion
 
   Write-Host "Deploy completed successfully."
 } catch {

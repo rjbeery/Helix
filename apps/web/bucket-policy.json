@@ -1,13 +1,18 @@
 {
-  "Version":"2012-10-17",
-  "Statement":[
+  "Version": "2012-10-17",
+  "Statement": [
     {
-      "Sid":"AllowCloudFrontReadViaOAC",
-      "Effect":"Allow",
-      "Principal":{"Service":"cloudfront.amazonaws.com"},
-      "Action":["s3:GetObject"],
-      "Resource":"arn:aws:s3:::helixai-site-helixai-live/*",
-      "Condition":{"StringEquals":{"AWS:SourceArn":"arn:aws:cloudfront::/E1WTW4Q4V8UY5C"}}
+      "Sid": "AllowCloudFrontReadViaOAC",
+      "Effect": "Allow",
+      "Principal": { "Service": "cloudfront.amazonaws.com" },
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::helixai-site-helixai-live/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::541064517863:distribution/E1WTW4Q4V8UY5C",
+          "AWS:SourceAccount": "541064517863"
+        }
+      }
     }
   ]
 }
