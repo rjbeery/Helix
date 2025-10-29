@@ -1,4 +1,21 @@
 #!/bin/sh
+# Pre-commit hook: run staged secret scan
+
+ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$ROOT_DIR" ]; then
+  echo "[pre-commit] Not inside a git repo; skipping"
+  exit 0
+fi
+
+SCANNER="$ROOT_DIR/scripts/precommit-secret-scan.js"
+if command -v node >/dev/null 2>&1; then
+  node "$SCANNER"
+  exit $?
+else
+  echo "[pre-commit] Node.js not found; skipping secret scan. Install Node to enable it."
+  exit 0
+fi
+#!/bin/sh
 # Cross-platform pre-commit hook: fail if any BOMs are present
 node ./scripts/check-bom.js
 status=$?
