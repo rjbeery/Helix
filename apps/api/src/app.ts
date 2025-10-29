@@ -2,6 +2,10 @@ import express from "express";
 import cors from "cors";
 import auth from "./routes/auth.js";
 import { requireAuth, type AuthedRequest } from "./middleware/requireAuth.js";
+import { initSecrets } from "./config/secrets.js";
+
+// Initialize secrets at cold start (no-op locally)
+await initSecrets();
 
 export const app = express();
 
