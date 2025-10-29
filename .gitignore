@@ -28,6 +28,7 @@ apps/api/dist/
 apps/**/.env
 !.env.example
 !apps/**/.env.example
+login-test.json
 
 # --- Logs ---
 *.log
