@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -59,6 +63,13 @@ variable "project_name" {
   type        = string
   default     = "helixai"
   description = "Project name used in resource naming"
+}
+
+# Sensitive input for RDS master password (set via TF_VAR_db_master_password)
+variable "db_master_password" {
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 #####################################
@@ -239,10 +250,99 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Allow Lambda to pull container images from ECR
-resource "aws_iam_role_policy_attachment" "lambda_ecr_pull" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaECRImageRetrievalRolePolicy"
+# Allow Lambda to pull container images from ECR (custom policy)
+resource "aws_iam_role_policy" "lambda_ecr_pull" {
+  name = "${var.project_name}-lambda-ecr-pull"
+  role = aws_iam_role.lambda_exec.id
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer"
+        ],
+        Resource = "${aws_ecr_repository.api.arn}"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:GetAuthorizationToken"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+#####################################
+# RDS PostgreSQL (provisioned) - fast path to get DB online
+#####################################
+
+resource "aws_db_instance" "postgres" {
+  identifier             = "${var.project_name}-postgres"
+  engine                 = "postgres"
+  engine_version         = "16.10"
+  instance_class         = "db.t3.micro"
+  allocated_storage      = 20
+  db_name                = "helix"
+  username               = "postgres"
+  password               = var.db_master_password
+  skip_final_snapshot    = true
+  publicly_accessible    = true
+  backup_retention_period = 7
+
+  db_subnet_group_name   = aws_db_subnet_group.aurora.name
+  vpc_security_group_ids = [aws_security_group.aurora.id]
+}
+
+# VPC and networking for Aurora
+resource "aws_default_vpc" "default" {
+  tags = {
+    Name = "Default VPC"
+  }
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [aws_default_vpc.default.id]
+  }
+}
+
+resource "aws_db_subnet_group" "aurora" {
+  name       = "${var.project_name}-aurora-subnet"
+  subnet_ids = data.aws_subnets.default.ids
+  tags = {
+    Name = "${var.project_name}-aurora-subnet-group"
+  }
+}
+
+# Security group for Aurora (allow PostgreSQL from anywhere for now)
+resource "aws_security_group" "aurora" {
+  name        = "${var.project_name}-aurora-sg"
+  description = "Allow PostgreSQL access to Aurora"
+  vpc_id      = aws_default_vpc.default.id
+
+  ingress {
+    description = "PostgreSQL from anywhere (initial setup)"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # TODO: Restrict to Lambda security group or VPN
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-aurora-sg"
+  }
 }
 
 #####################################
@@ -253,10 +353,12 @@ resource "aws_secretsmanager_secret" "app" {
   name = "${var.project_name}-secrets"
 }
 
+# Store both JWT_SECRET and DATABASE_URL (pointing to RDS instance)
 resource "aws_secretsmanager_secret_version" "app" {
   secret_id = aws_secretsmanager_secret.app.id
   secret_string = jsonencode({
-    JWT_SECRET = "REPLACE_ME"
+    JWT_SECRET   = "REPLACE_ME_WITH_REAL_SECRET"
+    DATABASE_URL = "postgresql://${aws_db_instance.postgres.username}:${var.db_master_password}@${aws_db_instance.postgres.address}:5432/${aws_db_instance.postgres.db_name}?schema=public"
   })
 }
 
@@ -279,14 +381,7 @@ resource "aws_iam_role_policy_attachment" "lambda_secrets" {
 
 #####################################
 # Lambda (container image)
-#
-# Main API runtime:
-# - Container-based deployment
-# - 15s timeout for longer operations
-# - 512MB memory for ML workloads
-# - Access to secrets and CORS config
 #####################################
-
 resource "aws_lambda_function" "api" {
   function_name = "${var.project_name}-api"
   package_type  = "Image"
@@ -295,7 +390,6 @@ resource "aws_lambda_function" "api" {
   timeout       = 15
   memory_size   = 512
   architectures = ["x86_64"]
-
   environment {
     variables = {
       SECRETS_NAME   = aws_secretsmanager_secret.app.name
@@ -303,11 +397,9 @@ resource "aws_lambda_function" "api" {
     }
   }
 }
-
 #####################################
 # API Gateway (HTTP API) + custom domain
 #####################################
-
 resource "aws_apigatewayv2_api" "http" {
   name          = "${var.project_name}-http-api"
   protocol_type = "HTTP"
@@ -317,7 +409,6 @@ resource "aws_apigatewayv2_api" "http" {
     allow_headers = ["Authorization", "Content-Type"]
   }
 }
-
 resource "aws_apigatewayv2_integration" "lambda" {
   api_id                 = aws_apigatewayv2_api.http.id
   integration_type       = "AWS_PROXY"
@@ -325,19 +416,16 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
   timeout_milliseconds   = 29000
 }
-
 resource "aws_apigatewayv2_route" "default" {
   api_id    = aws_apigatewayv2_api.http.id
   route_key = "$default"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
-
 resource "aws_apigatewayv2_stage" "prod" {
   api_id      = aws_apigatewayv2_api.http.id
   name        = "$default"
   auto_deploy = true
 }
-
 resource "aws_lambda_permission" "apigw_invoke" {
   statement_id  = "AllowAPIGWInvoke"
   action        = "lambda:InvokeFunction"
@@ -345,8 +433,6 @@ resource "aws_lambda_permission" "apigw_invoke" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }
-
-# API custom domain with the SAME cert (issued in us-east-1)
 resource "aws_apigatewayv2_domain_name" "api" {
   domain_name = local.api_fqdn
   domain_name_configuration {
@@ -356,14 +442,11 @@ resource "aws_apigatewayv2_domain_name" "api" {
   }
   depends_on = [aws_acm_certificate_validation.site]
 }
-
 resource "aws_apigatewayv2_api_mapping" "api" {
   api_id      = aws_apigatewayv2_api.http.id
   domain_name = aws_apigatewayv2_domain_name.api.id
   stage       = aws_apigatewayv2_stage.prod.id
 }
-
-# DNS A/AAAA alias for api → API Gateway regional domain
 resource "aws_route53_record" "api_alias_ipv4" {
   zone_id = aws_route53_zone.primary.zone_id
   name    = local.api_fqdn
@@ -394,3 +477,5 @@ output "api_url" { value = "https://${local.api_fqdn}" }
 output "cloudfront_domain" { value = aws_cloudfront_distribution.cdn.domain_name }
 output "apigw_execute_url" { value = aws_apigatewayv2_api.http.api_endpoint }
 output "ecr_repo" { value = aws_ecr_repository.api.repository_url }
+output "rds_endpoint" { value = aws_db_instance.postgres.address }
+output "rds_database_name" { value = aws_db_instance.postgres.db_name }

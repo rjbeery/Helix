@@ -29,9 +29,13 @@ param(
   [string]$EcrWebRepo   = '',
   [string]$ImageTag     = 'latest',
 
+  # Lambda function name for API (matches Terraform default "helixai-api")
+  [string]$LambdaFunctionName = 'helixai-api',
+
   [switch]$SkipDockerBuild,
   [switch]$SkipWebBuild,
-  [switch]$SkipEcrPush
+  [switch]$SkipEcrPush,
+  [switch]$SkipLambdaUpdate
 )
 
 function New-AwsCommonArgs { param($p, $r) $arr = @(); if ($p) { $arr += @('--profile', $p) }; if ($r) { $arr += @('--region', $r) }; return ,$arr }
@@ -57,6 +61,8 @@ try {
   if (-not $SkipDockerBuild) {
     Write-Host "Building docker images (api + web) using docker compose..."
     docker compose build --pull api web
+    Write-Host "Building AWS Lambda image for API (Dockerfile.lambda)..."
+    docker build --pull -f Dockerfile.lambda -t helixsource-api-lambda:latest .
   } else {
     Write-Host "Skipping docker build (--SkipDockerBuild)."
   }
@@ -70,12 +76,34 @@ try {
   & $awsCmd @awsCommonArgs ecr get-login-password | docker login --username AWS --password-stdin $ecrHost
 
     if ($EcrApiRepo) {
+      # Push runtime API image (compose) if desired
       $localApiImage = 'helixsource-api:latest'
       $remoteApi = "$($ecrHost)/$($EcrApiRepo):$($ImageTag)"
-      Write-Host "Tagging $localApiImage -> $remoteApi"
-      docker tag $localApiImage $remoteApi
-      Write-Host "Pushing $remoteApi"
-      docker push $remoteApi
+  if ($null -ne (docker images -q $localApiImage)) {
+        Write-Host "Tagging $localApiImage -> $remoteApi"
+        docker tag $localApiImage $remoteApi
+        Write-Host "Pushing $remoteApi"
+        docker push $remoteApi
+      } else {
+        Write-Host "Note: $localApiImage not built; skipping runtime API image push."
+      }
+
+      # Push Lambda-optimized image
+      $localLambdaImage = 'helixsource-api-lambda:latest'
+      $remoteLambda = "$($ecrHost)/$($EcrApiRepo):$($ImageTag)"
+      Write-Host "Tagging $localLambdaImage -> $remoteLambda"
+      docker tag $localLambdaImage $remoteLambda
+      Write-Host "Pushing $remoteLambda"
+      docker push $remoteLambda
+
+      if (-not $SkipLambdaUpdate) {
+        if (-not $AwsRegion) { throw "-AwsRegion is required to update Lambda" }
+        Write-Host "Updating Lambda function code to $remoteLambda"
+        & $awsCmd @awsCommonArgs lambda update-function-code --function-name $LambdaFunctionName --image-uri $remoteLambda | Out-Null
+        Write-Host "Publish new version and set to $LATEST (optional step skipped)"
+      } else {
+        Write-Host "Skipping Lambda update (--SkipLambdaUpdate)."
+      }
     }
 
     if ($EcrWebRepo) {

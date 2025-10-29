@@ -31,30 +31,38 @@ export interface Engine {
 
 ## Tech Stack
 
-- **Frontend**: Vite + React + Tailwind (passcode gate)
+- **Frontend**: Vite + React + Tailwind
+  - Production: https://helixai.live (S3 + CloudFront)
 - **Backend**: Node.js + Express + TypeScript
+  - Production: https://api.helixai.live (API Gateway + Lambda)
 - **Database**: PostgreSQL via Prisma ORM
-  - Development: Docker PostgreSQL
-  - Production: Aurora PostgreSQL with pgvector
-- **Authentication**: JWT with bcrypt passcode verification
+  - Development: Docker PostgreSQL (local)
+  - Production: RDS PostgreSQL (AWS)
+- **Authentication**: JWT with bcryptjs email/password verification
 - **Infrastructure**: AWS (managed via Terraform)
-  - S3 + CloudFront for frontend
-  - Lambda or Fargate for API
-  - Aurora PostgreSQL + pgvector
-  - Secrets Manager
-  - CloudWatch logs & metrics
+  - S3 + CloudFront with OAC for frontend static hosting
+  - API Gateway (HTTP API) + Lambda (container image from ECR)
+  - RDS PostgreSQL
+  - Secrets Manager (JWT_SECRET, DATABASE_URL)
+  - Route53 + ACM (SSL certificates)
+  - CloudWatch logs
 
 ## Environment Configuration
 
-`.env` for local development:
+### Local Development
+`.env` in `apps/api/`:
 ```
-PORT=3001
-JWT_SECRET=your-long-random-secret
-TOKEN_TTL=6h
-DATABASE_URL=postgresql://USER:PASS@HOST:5432/DB?schema=public
-ADMIN_EMAIL=
-ADMIN_PASSWORD=
+DATABASE_URL=postgresql://helix:helix@localhost:5432/helix?schema=public
+JWT_SECRET=your-local-dev-secret
+ALLOWED_ORIGINS=http://localhost:5173
 ```
+
+### Production (AWS Lambda)
+Environment variables set via Terraform:
+- `SECRETS_NAME`: Points to AWS Secrets Manager secret containing `JWT_SECRET` and `DATABASE_URL`
+- `ALLOWED_ORIGIN`: https://helixai.live
+
+Secrets are loaded at Lambda cold start via `apps/api/src/config/secrets.ts`
 
 ## Database Schema (Prisma)
 
@@ -91,83 +99,144 @@ tests/          # unit and contract tests
 ## Quick Start (Local Development)
 
 ### Prerequisites
-- Node.js 18+
-- pnpm
-- Docker (for PostgreSQL)
+- Node.js 20+
+- pnpm 10+
+- Docker Desktop (for local PostgreSQL)
 - PowerShell (Windows) or bash (Unix)
 
-### Database Setup
+### 1. Clone and Install
 ```powershell
-# Start PostgreSQL container
-docker run -d \
-  --name helix-postgres \
-  -e POSTGRES_USER=helix \
-  -e POSTGRES_PASSWORD=helix \
-  -e POSTGRES_DB=helix \
-  -p 5432:5432 \
-  postgres:15-alpine
+git clone https://github.com/rjbeery/helix.git
+cd helix
+pnpm install
 ```
 
-### API Setup
+### 2. Database Setup
+Start PostgreSQL with Docker Compose:
+```powershell
+docker compose up -d postgres
+```
+
+This starts PostgreSQL on `localhost:5432` with:
+- Database: `helix`
+- User: `helix`
+- Password: `helix`
+
+### 3. Initialize Database
 ```powershell
 cd apps/api
-pnpm install
-pnpm prisma generate
-pnpm prisma migrate dev
+pnpm prisma migrate deploy
+```
+
+### 4. Seed Admin User (Optional)
+```powershell
+# Set credentials in .env or export as env vars
+$env:ADMIN_EMAIL = "admin@example.com"
+$env:ADMIN_PASSWORD = "your-secure-password"
+pnpm tsx scripts/ensureAdmin.ts
+```
+
+### 5. Run API
+```powershell
+cd apps/api
 pnpm dev
 ```
-Runs on http://localhost:3001
+API runs on http://localhost:8081
 
-### Web Setup
+### 6. Run Frontend
 ```powershell
 cd apps/web
-pnpm install
 pnpm dev
 ```
-Runs on http://localhost:5173
+Frontend runs on http://localhost:5173
 
-Vite proxy configuration in `vite.config.ts` forwards API calls to http://localhost:3001
+Vite dev server proxies `/auth` and `/v1` requests to the API at http://localhost:8081
 
-## CI/CD
+## Deployment
 
-GitHub Actions workflows:
-- `.github/workflows/build.yml` - Build and test
-- `.github/workflows/deploy.yml` - Deploy to AWS
+### Production Architecture
+- **Frontend**: https://helixai.live
+  - S3 bucket with CloudFront distribution
+  - Origin Access Control (OAC) for secure S3 access
+  - Route53 A/AAAA records
+- **API**: https://api.helixai.live
+  - Lambda function (container image from ECR)
+  - API Gateway HTTP API with custom domain
+  - Route53 A/AAAA records
+- **Database**: RDS PostgreSQL
+  - Instance: `helixai-postgres.ca5ogg4aalo0.us-east-1.rds.amazonaws.com`
+  - Database: `helix`
+- **Secrets**: AWS Secrets Manager
+  - Secret: `helixai-secrets`
+  - Contains: `JWT_SECRET`, `DATABASE_URL`
 
-Terraform modules under `infra/terraform/`:
-- S3 + CloudFront (web hosting)
-- API Gateway + Lambda/Fargate (API)
-- Aurora PostgreSQL with pgvector
-- Secrets Manager
-- CloudWatch
-- IAM roles & permissions
+### Deployment Scripts
 
-## TODO
+**Deploy Frontend:**
+```powershell
+.\deploy-frontend.ps1 -AwsProfile helix -AwsRegion us-east-1
+```
+Syncs `apps/web/dist` to S3 and invalidates CloudFront cache.
 
-### Auth
-- [x] Implement bcrypt verification for passcodes
-- [ ] Issue JWTs with TTL using JWT_SECRET
-- [ ] Middleware for all /v1/* routes
+**Deploy All (API + Frontend):**
+```powershell
+.\deploy-all.ps1 -AwsProfile helix -AwsRegion us-east-1 -EcrAccountId 541064517863 -EcrApiRepo helixai-api
+```
+Builds Docker images, pushes Lambda image to ECR, updates Lambda function, and deploys frontend.
 
-### Database
-- [ ] Complete Prisma schema and migrations
-- [ ] Seed script with demo user/persona/agent
+**Seed Production Database:**
+```powershell
+.\seed-prod.ps1 -DbSecretId helixai-secrets -AwsProfile helix -AwsRegion us-east-1 -AdminEmail "admin@example.com" -AdminPassword (ConvertTo-SecureString "password" -AsPlainText -Force)
+```
 
-### Agents
+### Infrastructure as Code
+
+Terraform configuration in `infra/terraform/`:
+- `main.tf`: Core infrastructure (S3, CloudFront, Lambda, API Gateway, RDS, Secrets Manager)
+- `acm.tf`: SSL certificate for both `helixai.live` and `api.helixai.live`
+- `route53.tf`: DNS zone and records
+
+**Apply Infrastructure:**
+```powershell
+cd infra/terraform
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
+```
+
+**Note:** Set `TF_VAR_db_master_password` environment variable for database password.
+
+## Development Status
+
+### Completed ✅
+- [x] JWT authentication with email/password (bcryptjs)
+- [x] Prisma schema with users table
+- [x] Seed scripts for admin and demo users
+- [x] Express API with `/health`, `/auth/login`, `/auth/verify`, `/v1/me`
+- [x] JWT middleware for protected routes
+- [x] React frontend with login, logout, role display
+- [x] AWS infrastructure via Terraform
+  - S3 + CloudFront (OAC) for frontend
+  - API Gateway + Lambda (container image)
+  - RDS PostgreSQL
+  - Route53 + ACM (SSL)
+  - Secrets Manager
+- [x] Deployment scripts (PowerShell)
+- [x] Production deployment at helixai.live and api.helixai.live
+
+### In Progress 🚧
+- [ ] Agent conversation interface
 - [ ] Provider adapters (OpenAI, Anthropic, Bedrock)
-- [ ] Centralized cost calculator
-- [ ] Ledger + budget decrement logic
-- [ ] Enforce 402 lockout when budget exhausted
+- [ ] Orchestrator with personality merging
+- [ ] Tool invocation system
 
-### Frontend
-- [ ] Passcode → JWT → route guard
-- [ ] Budget banner + lockout UI
-- [ ] Persona management (prompt + avatar)
-- [ ] Agent invocation interface
-
-### Infrastructure
-- [ ] AWS Terraform modules (S3, CloudFront, API Gateway, Lambda/ECS, Aurora, Secrets)
-- [ ] GitHub Actions deploy workflow
+### Planned 📋
+- [ ] Budget tracking and cost calculation
+- [ ] Vector memory with pgvector
+- [ ] Multi-persona management UI
+- [ ] Conversation history
+- [ ] Document upload and RAG
+- [ ] GitHub Actions CI/CD pipeline
 
 ## License
 

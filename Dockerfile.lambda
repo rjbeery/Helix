@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+
+# --- deps: install workspace deps
+FROM node:20-alpine AS deps
+WORKDIR /app
+RUN corepack enable
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# package manifests for workspaces
+COPY apps/api/package.json apps/api/package.json
+COPY packages/*/package.json packages/*/
+RUN pnpm -w install --frozen-lockfile
+
+# --- build: compile TypeScript
+FROM node:20-alpine AS build
+WORKDIR /app
+RUN corepack enable
+ENV CI=true
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# Ensure package-local node_modules are linked correctly now that sources exist
+RUN pnpm -C apps/api install --frozen-lockfile
+# Prisma client (types only; DB not required at build time)
+RUN pnpm -C apps/api prisma generate || true
+RUN pnpm -C apps/api build
+
+# --- lambda runtime image
+# Use AWS Lambda Node.js 20 base image with npm pre-installed
+FROM public.ecr.aws/lambda/nodejs:20 AS lambda
+# Set working directory to API app
+WORKDIR /var/task
+# Copy compiled app and package.json
+COPY --from=build /app/apps/api/dist ./dist
+COPY --from=build /app/apps/api/package.json ./package.json
+# copy prisma client runtime (if used at runtime)
+COPY --from=build /app/apps/api/prisma ./prisma
+# Install production dependencies using npm (no pnpm workspace complexity)
+RUN npm install --omit=dev --no-package-lock
+
+# Command points to the Lambda handler (file: dist/lambda.js, export: handler)
+CMD ["dist/lambda.handler"]
