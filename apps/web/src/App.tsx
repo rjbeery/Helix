@@ -22,10 +22,10 @@ export default function App() {
   async function verifyNow(tok: string) {
     setStatus("Verifying…");
     try {
-      const res = await fetch(\\/auth/verify\, {
-        headers: { Authorization: \Bearer \\ },
+      const res = await fetch(`${API_BASE}/auth/verify`, {
+        headers: { Authorization: `Bearer ${tok}` },
       });
-      if (!res.ok) throw new Error(\Verify failed (\)\);
+      if (!res.ok) throw new Error(`Verify failed (${res.status})`);
       const data: VerifyResponse = await res.json();
       setUser(data.user);
       setStatus("Token valid");
@@ -47,12 +47,12 @@ export default function App() {
     e.preventDefault();
     setStatus("Logging in…");
     try {
-      const res = await fetch(\\/auth/login\, {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error(\Login failed (\)\);
+      if (!res.ok) throw new Error(`Login failed (${res.status})`);
       const data: LoginResponse = await res.json();
       localStorage.setItem("helix.token", data.token);
       setToken(data.token);
