@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import HelixLogoTagline from "./public/images/Helix_logo_with_tagline.svg";
+import Chat from "./Chat";
 
 type VerifyResponse = { ok: true; user: { sub: string; role: "master" | "guest" } };
 type LoginResponse = { token: string };
-type MeResponse = { userId: string; role: "master" | "guest" };
 
-const API_BASE = import.meta.env.VITE_API_URL ?? ""; // "" in dev (Vite proxy), full URL in prod
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export default function App() {
   const [email, setEmail] = useState("");
@@ -19,69 +19,47 @@ export default function App() {
     if (t) setToken(t);
   }, []);
 
-  // Helper to verify a specific token and update user
   async function verifyNow(tok: string) {
     setStatus("Verifying…");
     try {
-      const res = await fetch(`${API_BASE}/auth/verify`, {
-        headers: { Authorization: `Bearer ${tok}` },
+      const res = await fetch(\\/auth/verify\, {
+        headers: { Authorization: \Bearer \\ },
       });
-      if (!res.ok) throw new Error(`Verify failed (${res.status})`);
+      if (!res.ok) throw new Error(\Verify failed (\)\);
       const data: VerifyResponse = await res.json();
       setUser(data.user);
       setStatus("Token valid");
     } catch (err: any) {
       setStatus(err.message || "Verify error");
+      // If verification fails, clear the token
+      localStorage.removeItem("helix.token");
+      setToken(null);
     }
   }
 
-  // When a token is present (from storage or fresh login), auto-verify to populate user
   useEffect(() => {
     if (token) {
       verifyNow(token);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setStatus("Logging in…");
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch(\\/auth/login\, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error(`Login failed (${res.status})`);
+      if (!res.ok) throw new Error(\Login failed (\)\);
       const data: LoginResponse = await res.json();
       localStorage.setItem("helix.token", data.token);
       setToken(data.token);
       setStatus("Login OK");
-      // Immediately verify to populate role on the page
       await verifyNow(data.token);
     } catch (err: any) {
       setStatus(err.message || "Login error");
-    }
-  }
-
-  async function verify() {
-    if (!token) return setStatus("No token");
-    return verifyNow(token);
-  }
-
-  async function me() {
-    if (!token) return setStatus("No token");
-    setStatus("Loading /v1/me…");
-    try {
-      const res = await fetch(`${API_BASE}/v1/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`/v1/me failed (${res.status})`);
-      const data: MeResponse = await res.json();
-      setUser({ sub: data.userId, role: data.role });
-      setStatus("/v1/me OK");
-    } catch (err: any) {
-      setStatus(err.message || "/v1/me error");
     }
   }
 
@@ -92,6 +70,60 @@ export default function App() {
     setStatus("Logged out");
   }
 
+  // If logged in, show chat interface
+  if (token && user) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "#0d0d0d" }}>
+        {/* Header with logo and logout */}
+        <div style={{
+          borderBottom: "1px solid #333",
+          backgroundColor: "#1a1a1a",
+          padding: "12px 24px"
+        }}>
+          <div style={{
+            maxWidth: "960px",
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
+            <img 
+              src={HelixLogoTagline} 
+              alt="Helix AI Logo" 
+              style={{ height: "60px" }}
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <span style={{ color: "#a0a0a0", fontSize: "14px" }}>
+                {user.role === "master" ? "Admin" : "Guest"}
+              </span>
+              <button
+                onClick={logout}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#dc3545",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#a71d2a")}
+                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#dc3545")}
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Chat component */}
+        <Chat token={token} apiBase={API_BASE} />
+      </div>
+    );
+  }
+
+  // Login screen
   return (
     <div
       style={{
@@ -106,223 +138,81 @@ export default function App() {
         minHeight: "400px",
       }}
     >
-      {!token ? (
-        <>
-          {/* Logo placed at the very top of the login area with tighter spacing */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
-            <img
-              src={HelixLogoTagline}
-              alt="Helix AI Logo"
-              style={{ maxWidth: "100%", height: "auto" }}
-            />
-          </div>
-          <p
-            style={{
-              marginTop: 0,
-              color: "#a0a0a0",
-              fontSize: "14px",
-              textAlign: "center",
-              maxWidth: "80%",
-              margin: "0 auto",
-            }}
-          >
-            A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
-          </p>
-        </>
-      ) : (
-        <>
-          {/* Logo at the top of logged-in view for consistency */}
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
-            <img
-              src={HelixLogoTagline}
-              alt="Helix AI Logo"
-              style={{
-                width: "400px",
-                height: "200px",
-                filter: "drop-shadow(0 2px 4px rgba(0, 209, 255, 0.3))",
-              }}
-            />
-          </div>
-{/*
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              marginTop: 8,
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}
-          >
-            <button
-              onClick={verify}
-              style={{
-                padding: "12px 20px",
-                backgroundColor: "#28a745",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "14px",
-                cursor: "pointer",
-                transition: "background-color 0.2s",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#1e7e34")}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#28a745")}
-            >
-              Verify token
-            </button>
-            <button
-              onClick={me}
-              style={{
-                padding: "12px 20px",
-                backgroundColor: "#17a2b8",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "14px",
-                cursor: "pointer",
-                transition: "background-color 0.2s",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#117a8b")}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#17a2b8")}
-            >
-              /v1/me
-            </button>
-            <button
-              onClick={logout}
-              style={{
-                padding: "12px 20px",
-                backgroundColor: "#dc3545",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "14px",
-                cursor: "pointer",
-                transition: "background-color 0.2s",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#a71d2a")}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#dc3545")}
-            >
-              Log out
-            </button>
-          </div>
-*/}
-          <p
-            style={{
-              marginTop: 0,
-              color: "#a0a0a0",
-              fontSize: "14px",
-              textAlign: "center",
-              maxWidth: "80%",
-              margin: "0 auto",
-            }}
-          >
-            A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
-          </p>
-        </>
-      )}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
+        <img
+          src={HelixLogoTagline}
+          alt="Helix AI Logo"
+          style={{ maxWidth: "100%", height: "auto" }}
+        />
+      </div>
+      <p
+        style={{
+          marginTop: 0,
+          color: "#a0a0a0",
+          fontSize: "14px",
+          textAlign: "center",
+          maxWidth: "80%",
+          margin: "0 auto 24px",
+        }}
+      >
+        A modular GenAI orchestration platform for multi-model, multi-persona intelligence.
+      </p>
 
-          {!token && (
-            <form onSubmit={login} style={{ display: "grid", gap: "12px", marginTop: 8 }}>
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="username"
-                style={{
-                  padding: "12px",
-                  backgroundColor: "#2a2a2a",
-                  color: "#ffffff",
-                  border: "1px solid #444",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                }}
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                style={{
-                  padding: "12px",
-                  backgroundColor: "#2a2a2a",
-                  color: "#ffffff",
-                  border: "1px solid #444",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  padding: "12px",
-                  backgroundColor: "#00d1ff", // Matches theme-color from index.html
-                  color: "#1a1a1a",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "16px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  transition: "background-color 0.2s",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#00b3d9")}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#00d1ff")}
-              >
-                Log in
-              </button>
-            </form>
-          )}
+      <form onSubmit={login} style={{ display: "grid", gap: "12px" }}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="username"
+          style={{
+            padding: "12px",
+            backgroundColor: "#2a2a2a",
+            color: "#ffffff",
+            border: "1px solid #444",
+            borderRadius: "8px",
+            fontSize: "16px",
+          }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+          style={{
+            padding: "12px",
+            backgroundColor: "#2a2a2a",
+            color: "#ffffff",
+            border: "1px solid #444",
+            borderRadius: "8px",
+            fontSize: "16px",
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: "12px",
+            backgroundColor: "#00d1ff",
+            color: "#1a1a1a",
+            border: "none",
+            borderRadius: "8px",
+            fontSize: "16px",
+            fontWeight: 500,
+            cursor: "pointer",
+            transition: "background-color 0.2s",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#00b3d9")}
+          onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#00d1ff")}
+        >
+          Log in
+        </button>
+      </form>
 
       <div style={{ marginTop: 24, fontSize: "14px", textAlign: "center" }}>
         <strong>Status:</strong> {status || "—"}
-      </div>
-
-      <div style={{ marginTop: 16, fontSize: "14px", textAlign: "center" }}>
-        <strong>User:</strong>{" "}
-        {user ? (
-          <code
-            style={{
-              backgroundColor: "#2a2a2a",
-              padding: "2px 6px",
-              borderRadius: "4px",
-            }}
-          >
-            {user.role === "master" ? "admin" : "guest"}
-          </code>
-        ) : (
-          <span style={{ color: "#a0a0a0" }}>none</span>
-        )}
-      </div>
-
-      {token && (
-        <div style={{ marginTop: 16, textAlign: "center" }}>
-          <button
-            onClick={logout}
-            style={{
-              padding: "10px 16px",
-              backgroundColor: "#dc3545",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "14px",
-              cursor: "pointer",
-              transition: "background-color 0.2s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#a71d2a")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#dc3545")}
-          >
-            Log out
-          </button>
-        </div>
-      )}
-
-      <div style={{ marginTop: 16, fontSize: "12px", color: "#a0a0a0", textAlign: "center" }}>
-        API_BASE: <code style={{ backgroundColor: "#2a2a2a", padding: "2px 6px", borderRadius: "4px" }}>
-          {API_BASE || "(proxy)"}
-        </code>
       </div>
     </div>
   );
