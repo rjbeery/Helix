@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,14 +5,90 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  
 }
+
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
+  id            String    @id @default(uuid())
+  email         String    @unique
   passwordHash  String
-  role          String   @default("user") // "admin" | "user"
-  budgetCents   Int      @default(0)
+  role          String    @default("guest") // "master" | "guest"
+  budgetCents   Int       @default(10000)
+  createdAt     DateTime  @default(now())
+  
+  personas      Persona[]
+}
+
+model Engine {
+  id              String    @id
+  provider        String
+  displayName     String
+  enabled         Boolean   @default(true)
+  costPer1MInput  Int
+  costPer1MOutput Int
+  createdAt       DateTime  @default(now())
+  
+  personas        Persona[]
+}
+
+model Persona {
+  id            String   @id @default(uuid())
+  userId        String
+  engineId      String
+  label         String
+  systemPrompt  String   @db.Text
+  avatarUrl     String?
+  temperature   Float?   @default(0.7)
+  maxTokens     Int?     @default(2000)
+  toolWhitelist String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  engine        Engine   @relation(fields: [engineId], references: [id])
+  agents        Agent[]
+  
+  @@index([userId])
+  @@index([engineId])
+}
+
+model Agent {
+  id            String   @id @default(uuid())
+  personaId     String
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  
+  persona       Persona        @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  
+  @@index([personaId])
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  agentId   String
+  createdAt DateTime  @default(now())
+  
+  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  
+  @@index([agentId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  role           String
+  content        String   @db.Text
+  costCents      Int      @default(0)
+  createdAt      DateTime @default(now())
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([conversationId])
+}
+
+model Document {
+  docId     String   @id
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
 }
