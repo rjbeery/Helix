@@ -346,6 +346,72 @@ resource "aws_security_group" "aurora" {
 }
 
 #####################################
+# S3 Bucket for Avatar Uploads
+#####################################
+
+resource "aws_s3_bucket" "avatars" {
+  bucket = "${var.project_name}-avatars"
+}
+
+resource "aws_s3_bucket_public_access_block" "avatars" {
+  bucket = aws_s3_bucket.avatars.id
+  
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_cors_configuration" "avatars" {
+  bucket = aws_s3_bucket.avatars.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST"]
+    allowed_origins = ["https://${local.site_fqdn}", "http://localhost:5173"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+resource "aws_s3_bucket_policy" "avatars_public_read" {
+  bucket = aws_s3_bucket.avatars.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.avatars.arn}/*"
+      }
+    ]
+  })
+  
+  depends_on = [aws_s3_bucket_public_access_block.avatars]
+}
+
+# IAM policy for Lambda to upload to S3
+resource "aws_iam_role_policy" "lambda_s3_avatars" {
+  name = "${var.project_name}-lambda-s3-avatars"
+  role = aws_iam_role.lambda_exec.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:PutObjectAcl"
+        ]
+        Resource = "${aws_s3_bucket.avatars.arn}/*"
+      }
+    ]
+  })
+}
+
+#####################################
 # Secrets Manager (+ permission for Lambda)
 #####################################
 
@@ -379,6 +445,25 @@ resource "aws_iam_role_policy_attachment" "lambda_secrets" {
   policy_arn = aws_iam_policy.secrets_read.arn
 }
 
+# Allow Lambda to read from Parameter Store (for admin credentials)
+resource "aws_iam_role_policy" "lambda_ssm_read" {
+  name = "${var.project_name}-lambda-ssm-read"
+  role = aws_iam_role.lambda_exec.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:${var.region}:*:parameter/helix/prod/*"
+      }
+    ]
+  })
+}
+
 #####################################
 # Lambda (container image)
 #####################################
@@ -387,13 +472,20 @@ resource "aws_lambda_function" "api" {
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.api.repository_url}:latest"
   role          = aws_iam_role.lambda_exec.arn
-  timeout       = 15
-  memory_size   = 512
+  timeout       = 30
+  memory_size   = 1024
   architectures = ["x86_64"]
   environment {
     variables = {
-      SECRETS_NAME   = aws_secretsmanager_secret.app.name
-      ALLOWED_ORIGIN = "https://${local.site_fqdn}"
+      NODE_ENV          = "production"
+      SECRETS_NAME      = aws_secretsmanager_secret.app.name
+      USE_AWS_SECRETS   = "true"
+      PARAMETER_PREFIX  = "/helix/prod"
+      ALLOWED_ORIGINS   = "https://${local.site_fqdn}"
+      S3_AVATAR_BUCKET  = aws_s3_bucket.avatars.id
+      AWS_REGION        = var.region
+      # LLM API keys should be set via Parameter Store
+      # OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
     }
   }
 }
@@ -479,3 +571,4 @@ output "apigw_execute_url" { value = aws_apigatewayv2_api.http.api_endpoint }
 output "ecr_repo" { value = aws_ecr_repository.api.repository_url }
 output "rds_endpoint" { value = aws_db_instance.postgres.address }
 output "rds_database_name" { value = aws_db_instance.postgres.db_name }
+output "s3_avatar_bucket" { value = aws_s3_bucket.avatars.id }
