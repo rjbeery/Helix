@@ -35,6 +35,7 @@ model Persona {
   userId        String
   engineId      String
   label         String
+  specialization String?
   systemPrompt  String   @db.Text
   avatarUrl     String?
   temperature   Float?   @default(0.7)
@@ -42,36 +43,25 @@ model Persona {
   toolWhitelist String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   engine        Engine   @relation(fields: [engineId], references: [id])
-  agents        Agent[]
-  
+  conversations Conversation[]
+
   @@index([userId])
   @@index([engineId])
 }
 
-model Agent {
-  id            String   @id @default(uuid())
-  personaId     String
-  status        String   @default("active")
-  createdAt     DateTime @default(now())
-  
-  persona       Persona        @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  conversations Conversation[]
-  
-  @@index([personaId])
-}
 
 model Conversation {
   id        String    @id @default(uuid())
-  agentId   String
+  personaId String
   createdAt DateTime  @default(now())
-  
-  agent     Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  persona   Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
   messages  Message[]
-  
-  @@index([agentId])
+
+  @@index([personaId])
 }
 
 model Message {

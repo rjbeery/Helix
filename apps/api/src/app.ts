@@ -22,6 +22,10 @@ app.use(
   })
 );
 app.use(express.json());
+// Static file serving for local avatar uploads (dev only)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/uploads', express.static('uploads'));
+}
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));
 // auth routes
