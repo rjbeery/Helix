@@ -42,7 +42,30 @@ auth.post("/login", async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
-auth.get("/verify", requireAuth, (req, res) => {
-  res.json({ ok: true, user: (req as any).user });
+auth.get("/verify", requireAuth, async (req, res) => {
+  try {
+    const userId = (req as any).user?.sub;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, budgetCents: true }
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ 
+      ok: true, 
+      user: { 
+        sub: user.id, 
+        email: user.email,
+        role: user.role as Role,
+        budgetCents: user.budgetCents
+      } 
+    });
+  } catch (error) {
+    console.error('Verify error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 export default auth;

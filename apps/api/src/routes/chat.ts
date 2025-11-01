@@ -25,8 +25,7 @@ router.post('/', async (req: Request, res: Response) => {
     const persona = await prisma.persona.findFirst({
       where: { id: personaId, userId },
       include: { 
-        engine: true,
-        agents: { where: { status: 'active' }, take: 1 }
+        engine: true
       }
     });
 
@@ -43,19 +42,11 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(402).json({ error: 'Insufficient budget' });
     }
 
-    // Get or create agent
-    let agent = persona.agents[0];
-    if (!agent) {
-      agent = await prisma.agent.create({
-        data: { personaId: persona.id, status: 'active' }
-      });
-    }
-
     // Get or create conversation
     let conversation;
     if (conversationId) {
       conversation = await prisma.conversation.findFirst({
-        where: { id: conversationId, agentId: agent.id },
+        where: { id: conversationId, personaId: persona.id },
         include: {
           messages: { orderBy: { createdAt: 'asc' }, take: 20 }
         }
@@ -64,7 +55,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
-        data: { agentId: agent.id },
+        data: { personaId: persona.id },
         include: { messages: true }
       });
     }
