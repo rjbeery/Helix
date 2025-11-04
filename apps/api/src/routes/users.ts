@@ -16,7 +16,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Users can only edit their own settings (unless they're master)
+  // Users can only edit their own settings (unless they're admin)
     const requestingUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true }
@@ -26,7 +26,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (userId !== targetUserId && requestingUser.role !== 'master') {
+  if (userId !== targetUserId && requestingUser.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

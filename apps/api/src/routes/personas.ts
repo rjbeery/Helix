@@ -18,10 +18,12 @@ interface AuthedRequest extends Request {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthedRequest).user?.sub;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+  const userRole = (req as AuthedRequest).user?.role;
+  if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+    // Admin can see all personas, regular users only see their own
     const personas = await prisma.persona.findMany({
-      where: { userId },
+      where: userRole === 'admin' ? {} : { userId },
       include: {
         engine: true
       },

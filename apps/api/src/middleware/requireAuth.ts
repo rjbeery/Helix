@@ -25,7 +25,7 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
       return res.status(401).json({ error: "Invalid token payload" });
     }
     const { sub, role } = decoded as { sub?: string; role?: Role };
-    if (!sub || (role !== "master" && role !== "guest")) {
+  if (!sub || (role !== "admin" && role !== "user")) {
       return res.status(401).json({ error: "Invalid token payload" });
     }
 

@@ -33,7 +33,7 @@ auth.post("/login", async (req, res) => {
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
     const secret = process.env.JWT_SECRET;
     if (!secret) return res.status(500).json({ error: "Server misconfigured: missing JWT_SECRET" });
-    const role: Role = user.role === "master" ? "master" : "guest";
+  const role: Role = user.role === "admin" ? "admin" : "user";
     const ttl = process.env.TOKEN_TTL || "6h";
     const token = jwt.sign({ sub: user.id, role }, secret, { expiresIn: ttl });
     return res.json({ token });
