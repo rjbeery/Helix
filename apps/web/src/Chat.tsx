@@ -860,7 +860,10 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
             Multi-Agent Mode ({activePersonaIds.length} personas active)
           </div>
           <div style={{ display: 'flex', gap: '24px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fff' }}>
+            <label 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fff' }}
+              title="Panel Mode: All active personas analyze the question independently and provide their own answers in parallel. Fast, diverse perspectives."
+            >
               <input
                 type="radio"
                 name="multiAgentMode"
@@ -876,7 +879,10 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
                 </div>
               </div>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fff' }}>
+            <label 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fff' }}
+              title="Baton Mode: First persona answers, then subsequent personas review and refine the answer sequentially. Stops when answer quality reaches the truthiness threshold. Best for iterative improvement."
+            >
               <input
                 type="radio"
                 name="multiAgentMode"

@@ -100,7 +100,10 @@ export default function App() {
                 <span style={{ color: "#00d1ff", fontSize: "14px", fontWeight: 600 }}>
                   ${(user.budgetCents / 100).toFixed(2)} total
                 </span>
-                <span style={{ color: "#888", fontSize: "11px" }}>
+                <span 
+                  style={{ color: "#888", fontSize: "11px" }}
+                  title={`Max cost per question: $${(user.maxBudgetPerQuestion / 100).toFixed(2)} | Max personas in sequential baton chain: ${user.maxBatonPasses} | Answer quality threshold: ${(user.truthinessThreshold * 100).toFixed(0)}% (agents stop when answer is good enough)`}
+                >
                   ${(user.maxBudgetPerQuestion / 100).toFixed(2)} max/question • max {user.maxBatonPasses} baton passes • {(user.truthinessThreshold * 100).toFixed(0)}% truthiness
                 </span>
               </div>
