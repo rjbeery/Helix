@@ -1,0 +1,81 @@
+import { Router, Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+
+const router = Router();
+const prisma = new PrismaClient();
+
+interface AuthedRequest extends Request {
+  user?: { sub: string; role: string };
+}
+
+// PATCH /users/:id - Update user settings
+router.patch('/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthedRequest).user?.sub;
+    const targetUserId = req.params.id;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Users can only edit their own settings (unless they're master)
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+
+    if (!requestingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (userId !== targetUserId && requestingUser.role !== 'master') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { budgetCents, maxBudgetPerQuestion, maxBatonPasses, truthinessThreshold } = req.body;
+
+    // Validate inputs
+    const updates: any = {};
+    if (budgetCents !== undefined) {
+      if (typeof budgetCents !== 'number' || budgetCents < 0) {
+        return res.status(400).json({ error: 'Invalid budgetCents' });
+      }
+      updates.budgetCents = budgetCents;
+    }
+    if (maxBudgetPerQuestion !== undefined) {
+      if (typeof maxBudgetPerQuestion !== 'number' || maxBudgetPerQuestion < 0) {
+        return res.status(400).json({ error: 'Invalid maxBudgetPerQuestion' });
+      }
+      updates.maxBudgetPerQuestion = maxBudgetPerQuestion;
+    }
+    if (maxBatonPasses !== undefined) {
+      if (typeof maxBatonPasses !== 'number' || maxBatonPasses < 1 || maxBatonPasses > 20) {
+        return res.status(400).json({ error: 'Invalid maxBatonPasses (must be 1-20)' });
+      }
+      updates.maxBatonPasses = maxBatonPasses;
+    }
+    if (truthinessThreshold !== undefined) {
+      if (typeof truthinessThreshold !== 'number' || truthinessThreshold < 0 || truthinessThreshold > 1) {
+        return res.status(400).json({ error: 'Invalid truthinessThreshold (must be 0-1)' });
+      }
+      updates.truthinessThreshold = truthinessThreshold;
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: targetUserId },
+      data: updates,
+      select: {
+        budgetCents: true,
+        maxBudgetPerQuestion: true,
+        maxBatonPasses: true,
+        truthinessThreshold: true
+      }
+    });
+
+    return res.json(updatedUser);
+  } catch (error) {
+    console.error('Update user error:', error);
+    return res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+export default router;
