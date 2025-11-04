@@ -87,7 +87,7 @@ export default function App() {
   async function saveSettings() {
     if (!user || !token) return;
     try {
-      const res = await fetch(`${API_BASE}/users/${user.sub}`, {
+  const res = await fetch(`${API_BASE}/api/users/${user.sub}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

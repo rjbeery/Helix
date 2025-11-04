@@ -36,7 +36,7 @@ app.use("/api/personas", requireAuth, personas);
 // chat routes (protected)
 app.use("/api/chat", requireAuth, chat);
 // users routes (protected)
-app.use("/users", requireAuth, users);
+app.use("/api/users", requireAuth, users);
 // simple protected probe
 app.get("/v1/me", requireAuth, (req, res) => {
   const u = (req as AuthedRequest).user!;
