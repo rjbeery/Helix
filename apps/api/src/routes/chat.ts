@@ -139,4 +139,194 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/chat/baton - Baton mode: sequential refinement
+router.post('/baton', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthedRequest).user?.sub;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { personaIds, message, conversationIds } = req.body;
+    if (!personaIds || !Array.isArray(personaIds) || personaIds.length === 0 || !message) {
+      return res.status(400).json({ error: 'Missing personaIds or message' });
+    }
+
+    // Check budget
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { budgetCents: true }
+    });
+
+    if (!user || user.budgetCents <= 0) {
+      return res.status(402).json({ error: 'Insufficient budget' });
+    }
+
+    // Load all personas
+    const personas = await prisma.persona.findMany({
+      where: { id: { in: personaIds }, userId },
+      include: { engine: true }
+    });
+
+    if (personas.length !== personaIds.length) {
+      return res.status(404).json({ error: 'One or more personas not found' });
+    }
+
+    // Sort personas by the order in personaIds
+    const sortedPersonas = personaIds.map(id => personas.find(p => p.id === id)!);
+
+    const batonChain: Array<{
+      personaId: string;
+      content: string;
+      action: 'initial' | 'approved' | 'revised';
+    }> = [];
+    
+    let currentAnswer = '';
+    let totalCostCents = 0;
+    const resultConversationIds: (string | null)[] = [];
+
+    // Process each persona in sequence
+    for (let i = 0; i < sortedPersonas.length; i++) {
+      const persona = sortedPersonas[i];
+      const convId = conversationIds?.[i] || null;
+
+      // Get or create conversation
+      let conversation;
+      if (convId) {
+        conversation = await prisma.conversation.findFirst({
+          where: { id: convId, personaId: persona.id },
+          include: { messages: { orderBy: { createdAt: 'asc' }, take: 20 } }
+        });
+      }
+
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: { personaId: persona.id },
+          include: { messages: true }
+        });
+      }
+
+      resultConversationIds.push(conversation.id);
+
+      // Build message history
+      const messages: Message[] = [
+        { role: 'system', content: persona.systemPrompt }
+      ];
+
+      // Add conversation history
+      for (const msg of conversation.messages) {
+        messages.push({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        });
+      }
+
+      // First persona: respond to original question
+      if (i === 0) {
+        messages.push({ role: 'user', content: message });
+      } else {
+        // Subsequent personas: review previous answer
+        const reviewPrompt = `Original question: ${message}\n\nPrevious answer:\n${currentAnswer}\n\nReview this answer. If it's good, respond with "APPROVE: [reason]". If you have a significantly better or clearer version, respond with "REVISE:" followed by your improved answer.`;
+        messages.push({ role: 'user', content: reviewPrompt });
+      }
+
+      // Get API key
+      const provider = persona.engine.provider.toUpperCase();
+      const apiKeyEnvVar = provider + '_API_KEY';
+      const apiKey = process.env[apiKeyEnvVar];
+      if (!apiKey) {
+        return res.status(500).json({ error: 'API key not configured for ' + persona.engine.provider });
+      }
+
+      // Call engine
+      const engine = createEngine(persona.engineId as any, { apiKey });
+      const startTime = Date.now();
+      const response = await engine.complete({
+        messages,
+        temperature: persona.temperature ?? 0.7,
+        max_tokens: persona.maxTokens ?? 2000
+      });
+      const latencyMs = Date.now() - startTime;
+
+      // Calculate cost
+      const costCents = response.usage ? calculateCost(
+        persona.engineId as any,
+        response.usage.prompt_tokens,
+        response.usage.completion_tokens
+      ) : 0;
+
+      totalCostCents += costCents;
+
+      // Check budget
+      if (user.budgetCents < totalCostCents) {
+        return res.status(402).json({ error: 'Insufficient budget mid-baton' });
+      }
+
+      // Save messages
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: 'user',
+          content: messages[messages.length - 1].content,
+          costCents: 0
+        }
+      });
+
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: response.text,
+          costCents
+        }
+      });
+
+      // Determine action
+      let action: 'initial' | 'approved' | 'revised' = 'initial';
+      let displayContent = response.text;
+
+      if (i === 0) {
+        action = 'initial';
+        currentAnswer = response.text;
+      } else {
+        // Check if approved or revised
+        if (response.text.startsWith('APPROVE:')) {
+          action = 'approved';
+          displayContent = response.text.replace(/^APPROVE:\s*/, '');
+          // Keep current answer
+        } else if (response.text.startsWith('REVISE:')) {
+          action = 'revised';
+          displayContent = response.text.replace(/^REVISE:\s*/, '');
+          currentAnswer = displayContent; // Update answer
+        } else {
+          // If no prefix, treat as revised
+          action = 'revised';
+          currentAnswer = response.text;
+        }
+      }
+
+      batonChain.push({
+        personaId: persona.id,
+        content: displayContent,
+        action
+      });
+    }
+
+    // Deduct total budget
+    await prisma.user.update({
+      where: { id: userId },
+      data: { budgetCents: { decrement: totalCostCents } }
+    });
+
+    return res.json({
+      batonChain,
+      conversationIds: resultConversationIds,
+      totalCostCents,
+      remainingBudgetCents: user.budgetCents - totalCostCents
+    });
+
+  } catch (error) {
+    console.error('Baton chat error:', error);
+    return res.status(500).json({ error: 'Baton chat failed' });
+  }
+});
+
 export default router;

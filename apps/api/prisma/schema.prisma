@@ -12,7 +12,7 @@ model User {
   email         String    @unique
   passwordHash  String
   role          String    @default("guest") // "master" | "guest"
-  budgetCents   Int       @default(10000)
+  budgetCents   Int       @default(1500)
   createdAt     DateTime  @default(now())
   
   personas      Persona[]
