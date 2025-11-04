@@ -26,6 +26,9 @@ importers:
       '@aws-sdk/client-ssm':
         specifier: ^3.922.0
         version: 3.922.0
+      '@helix/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@prisma/client':
         specifier: ^6.17.1
         version: 6.17.1(prisma@6.17.1(typescript@5.9.3))(typescript@5.9.3)
