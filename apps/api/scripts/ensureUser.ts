@@ -14,7 +14,7 @@ const { PrismaClient } = pkg;
     await prisma.user.upsert({
       where: { email },
       update: { passwordHash: hash, role: "user" },
-      create: { email, passwordHash: hash, role: "user", budgetCents: 10_000 },
+      create: { email, passwordHash: hash, role: "user", budgetCents: 1_500 },
     });
     console.log("User ensured:", email);
   } finally {

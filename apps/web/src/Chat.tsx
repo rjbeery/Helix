@@ -4,6 +4,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   personaId?: string; // present for assistant messages
+  batonAction?: 'initial' | 'approved' | 'revised'; // for baton mode
 }
 
 interface Engine {
@@ -50,6 +51,7 @@ export default function Chat({ token, apiBase }: ChatProps) {
   const [newPrompt, setNewPrompt] = useState('');
   const [newEngineId, setNewEngineId] = useState('');
   const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
+  const [multiAgentMode, setMultiAgentMode] = useState<'panel' | 'baton'>('panel');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -276,33 +278,78 @@ export default function Chat({ token, apiBase }: ChatProps) {
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
 
-    for (const pid of activePersonaIds) {
-      const convId = conversationIds[pid] || null;
-      setLoadingCount((c) => c + 1);
-      fetch(apiBase + '/api/chat', {
+    // Panel mode: send to all personas simultaneously
+    if (multiAgentMode === 'panel' || activePersonaIds.length === 1) {
+      for (const pid of activePersonaIds) {
+        const convId = conversationIds[pid] || null;
+        setLoadingCount((c) => c + 1);
+        fetch(apiBase + '/api/chat', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            personaId: pid,
+            message: userMessage,
+            conversationId: convId
+          })
+        })
+          .then(async (r) => {
+            if (!r.ok) throw new Error('Chat failed');
+            const data = await r.json();
+            setConversationIds(prev => ({ ...prev, [pid]: data.conversationId }));
+            setMessages(prev => [...prev, { role: 'assistant', content: data.message, personaId: pid }]);
+          })
+          .catch((err) => {
+            console.error(err);
+            const p = personas.find(pp => pp.id === pid);
+            setMessages(prev => [...prev, { role: 'assistant', content: (p ? p.label + ': ' : '') + 'Sorry, something went wrong.', personaId: pid }]);
+          })
+          .finally(() => setLoadingCount((c) => Math.max(0, c - 1)));
+      }
+    } 
+    // Baton mode: sequential refinement
+    else if (multiAgentMode === 'baton') {
+      setLoadingCount(1);
+      fetch(apiBase + '/api/chat/baton', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + token,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          personaId: pid,
+          personaIds: activePersonaIds,
           message: userMessage,
-          conversationId: convId
+          conversationIds: activePersonaIds.map(pid => conversationIds[pid] || null)
         })
       })
         .then(async (r) => {
-          if (!r.ok) throw new Error('Chat failed');
+          if (!r.ok) throw new Error('Baton chat failed');
           const data = await r.json();
-          setConversationIds(prev => ({ ...prev, [pid]: data.conversationId }));
-          setMessages(prev => [...prev, { role: 'assistant', content: data.message, personaId: pid }]);
+          
+          // Update conversation IDs
+          data.conversationIds.forEach((convId: string, idx: number) => {
+            const pid = activePersonaIds[idx];
+            setConversationIds(prev => ({ ...prev, [pid]: convId }));
+          });
+          
+          // Add baton chain messages
+          setMessages(prev => [
+            ...prev,
+            ...data.batonChain.map((step: any) => ({
+              role: 'assistant' as const,
+              content: step.content,
+              personaId: step.personaId,
+              batonAction: step.action
+            }))
+          ]);
         })
         .catch((err) => {
           console.error(err);
-          const p = personas.find(pp => pp.id === pid);
-          setMessages(prev => [...prev, { role: 'assistant', content: (p ? p.label + ': ' : '') + 'Sorry, something went wrong.', personaId: pid }]);
+          setMessages(prev => [...prev, { role: 'assistant', content: 'Baton mode failed: ' + err.message }]);
         })
-        .finally(() => setLoadingCount((c) => Math.max(0, c - 1)));
+        .finally(() => setLoadingCount(0));
     }
   }
 
@@ -799,6 +846,55 @@ export default function Chat({ token, apiBase }: ChatProps) {
         </div>
       )}
 
+      {/* Multi-agent mode selector (only show when multiple personas active) */}
+      {activePersonaIds.length > 1 && !editing && !creating && (
+        <div style={{
+          padding: '16px',
+          border: '1px solid #444',
+          borderRadius: '8px',
+          backgroundColor: '#202020',
+          marginBottom: '16px'
+        }}>
+          <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600, marginBottom: '12px' }}>
+            Multi-Agent Mode ({activePersonaIds.length} personas active)
+          </div>
+          <div style={{ display: 'flex', gap: '24px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fff' }}>
+              <input
+                type="radio"
+                name="multiAgentMode"
+                value="panel"
+                checked={multiAgentMode === 'panel'}
+                onChange={() => setMultiAgentMode('panel')}
+                style={{ cursor: 'pointer' }}
+              />
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>Panel Mode</div>
+                <div style={{ fontSize: '11px', color: '#a0a0a0', marginTop: '2px' }}>
+                  All personas respond simultaneously with independent answers
+                </div>
+              </div>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#fff' }}>
+              <input
+                type="radio"
+                name="multiAgentMode"
+                value="baton"
+                checked={multiAgentMode === 'baton'}
+                onChange={() => setMultiAgentMode('baton')}
+                style={{ cursor: 'pointer' }}
+              />
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>Baton Mode</div>
+                <div style={{ fontSize: '11px', color: '#a0a0a0', marginTop: '2px' }}>
+                  Sequential refinement - each agent reviews and improves the answer
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
+
       {selectedPersona && !editing && !creating && (
         <div style={{
         flex: 1,
@@ -818,7 +914,9 @@ export default function Chat({ token, apiBase }: ChatProps) {
           }}>
             {activePersonaIds.length <= 1
               ? `Start a conversation with ${selectedPersona?.label}...`
-              : `Start a conversation with ${activePersonaIds.length} personas...`}
+              : multiAgentMode === 'panel'
+              ? `Start a panel discussion with ${activePersonaIds.length} personas...`
+              : `Start a baton relay with ${activePersonaIds.length} personas...`}
           </div>
         )}
         {messages.map((msg, i) => {
@@ -837,7 +935,10 @@ export default function Chat({ token, apiBase }: ChatProps) {
               color: '#a0a0a0', 
               marginBottom: '6px',
               fontWeight: 600,
-              textTransform: 'uppercase'
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 {msg.role === 'assistant' && p?.avatarUrl && (
@@ -845,6 +946,26 @@ export default function Chat({ token, apiBase }: ChatProps) {
                 )}
                 {msg.role === 'user' ? 'You' : (p?.label || 'Assistant')}
               </span>
+              {msg.batonAction && (
+                <span style={{
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: 
+                    msg.batonAction === 'initial' ? '#444' :
+                    msg.batonAction === 'approved' ? '#2a5030' :
+                    msg.batonAction === 'revised' ? '#00d1ff33' : '#444',
+                  color: 
+                    msg.batonAction === 'approved' ? '#50ff70' :
+                    msg.batonAction === 'revised' ? '#00d1ff' : '#aaa',
+                  fontWeight: 700,
+                  textTransform: 'uppercase'
+                }}>
+                  {msg.batonAction === 'initial' ? '📝 Initial' :
+                   msg.batonAction === 'approved' ? '👍 Approved' :
+                   msg.batonAction === 'revised' ? '✏️ Revised' : ''}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
               {msg.content}
