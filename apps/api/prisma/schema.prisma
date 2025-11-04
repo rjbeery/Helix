@@ -15,6 +15,7 @@ model User {
   budgetCents           Int       @default(1500)
   maxBudgetPerQuestion  Int       @default(100) // cents, ~$1 per question max
   maxBatonPasses        Int       @default(5)    // max personas in baton chain
+  truthinessThreshold   Float     @default(0.70) // min score to accept answer (0..1)
   createdAt             DateTime  @default(now())
   
   personas              Persona[]
