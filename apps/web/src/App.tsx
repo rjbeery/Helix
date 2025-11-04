@@ -13,6 +13,11 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [user, setUser] = useState<{ sub: string; email: string; role: "master" | "guest"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [editedBudget, setEditedBudget] = useState(0);
+  const [editedMaxPerQuestion, setEditedMaxPerQuestion] = useState(0);
+  const [editedMaxBatonPasses, setEditedMaxBatonPasses] = useState(0);
+  const [editedTruthinessThreshold, setEditedTruthinessThreshold] = useState(0);
 
   useEffect(() => {
     const t = localStorage.getItem("helix.token");
@@ -70,6 +75,41 @@ export default function App() {
     setStatus("Logged out");
   }
 
+  function openSettings() {
+    if (!user) return;
+    setEditedBudget(user.budgetCents / 100);
+    setEditedMaxPerQuestion(user.maxBudgetPerQuestion / 100);
+    setEditedMaxBatonPasses(user.maxBatonPasses);
+    setEditedTruthinessThreshold(user.truthinessThreshold * 100);
+    setShowSettings(true);
+  }
+
+  async function saveSettings() {
+    if (!user || !token) return;
+    try {
+      const res = await fetch(`${API_BASE}/users/${user.sub}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          budgetCents: Math.round(editedBudget * 100),
+          maxBudgetPerQuestion: Math.round(editedMaxPerQuestion * 100),
+          maxBatonPasses: editedMaxBatonPasses,
+          truthinessThreshold: editedTruthinessThreshold / 100,
+        }),
+      });
+      if (!res.ok) throw new Error(`Failed to update settings (${res.status})`);
+      const updated = await res.json();
+      setUser({ ...user, ...updated });
+      setShowSettings(false);
+      setStatus("Settings saved");
+    } catch (err: any) {
+      setStatus(err.message || "Failed to save settings");
+    }
+  }
+
   // If logged in, show chat interface
   if (token && user) {
     return (
@@ -96,7 +136,11 @@ export default function App() {
               <span style={{ color: "#a0a0a0", fontSize: "14px" }}>
                 {user.email}
               </span>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+              <div 
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", cursor: "pointer" }}
+                onClick={openSettings}
+                title="Click to edit settings"
+              >
                 <span style={{ color: "#00d1ff", fontSize: "14px", fontWeight: 600 }}>
                   ${(user.budgetCents / 100).toFixed(2)} total
                 </span>
@@ -107,6 +151,23 @@ export default function App() {
                   ${(user.maxBudgetPerQuestion / 100).toFixed(2)} max/question • max {user.maxBatonPasses} baton passes • {(user.truthinessThreshold * 100).toFixed(0)}% truthiness
                 </span>
               </div>
+              <button
+                onClick={openSettings}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#2563eb",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#1d4ed8")}
+                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
+              >
+                Settings
+              </button>
               <button
                 onClick={logout}
                 style={{
@@ -127,6 +188,153 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* Settings Modal */}
+        {showSettings && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: "#1a1a1a",
+              border: "1px solid #444",
+              borderRadius: "12px",
+              padding: "32px",
+              maxWidth: "500px",
+              width: "90%"
+            }}>
+              <h2 style={{ color: "#fff", marginTop: 0, marginBottom: "24px" }}>User Settings</h2>
+              
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
+                  Total Budget ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editedBudget}
+                  onChange={(e) => setEditedBudget(parseFloat(e.target.value) || 0)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    backgroundColor: "#0d0d0d",
+                    border: "1px solid #444",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "14px"
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
+                  Max Budget Per Question ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editedMaxPerQuestion}
+                  onChange={(e) => setEditedMaxPerQuestion(parseFloat(e.target.value) || 0)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    backgroundColor: "#0d0d0d",
+                    border: "1px solid #444",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "14px"
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
+                  Max Baton Passes
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={editedMaxBatonPasses}
+                  onChange={(e) => setEditedMaxBatonPasses(parseInt(e.target.value) || 1)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    backgroundColor: "#0d0d0d",
+                    border: "1px solid #444",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "14px"
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: "24px" }}>
+                <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
+                  Truthiness Threshold (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editedTruthinessThreshold}
+                  onChange={(e) => setEditedTruthinessThreshold(parseFloat(e.target.value) || 0)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    backgroundColor: "#0d0d0d",
+                    border: "1px solid #444",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "14px"
+                  }}
+                />
+                <div style={{ color: "#666", fontSize: "11px", marginTop: "4px" }}>
+                  Agents stop when answer quality reaches this threshold
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#333",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveSettings}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chat component */}
         <Chat token={token} apiBase={API_BASE} maxBatonPasses={user.maxBatonPasses} />

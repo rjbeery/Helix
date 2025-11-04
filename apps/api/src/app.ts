@@ -3,6 +3,7 @@ import cors from "cors";
 import auth from "./routes/auth.js";
 import personas from "./routes/personas.js";
 import chat from "./routes/chat.js";
+import users from "./routes/users.js";
 import { requireAuth, type AuthedRequest } from "./middleware/requireAuth.js";
 import { initSecrets } from "./config/secrets.js";
 // Initialize secrets at cold start (no-op locally)
@@ -34,6 +35,8 @@ app.use("/auth", auth);
 app.use("/api/personas", requireAuth, personas);
 // chat routes (protected)
 app.use("/api/chat", requireAuth, chat);
+// users routes (protected)
+app.use("/users", requireAuth, users);
 // simple protected probe
 app.get("/v1/me", requireAuth, (req, res) => {
   const u = (req as AuthedRequest).user!;
