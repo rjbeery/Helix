@@ -160,11 +160,18 @@ router.post('/baton', async (req: Request, res: Response) => {
     // Check budget
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { budgetCents: true, maxBudgetPerQuestion: true }
+      select: { budgetCents: true, maxBudgetPerQuestion: true, maxBatonPasses: true }
     });
 
     if (!user || user.budgetCents <= 0) {
       return res.status(402).json({ error: 'Insufficient budget' });
+    }
+
+    // Check max baton passes
+    if (personaIds.length > user.maxBatonPasses) {
+      return res.status(400).json({ 
+        error: `Too many personas in baton chain (${personaIds.length}). Maximum allowed: ${user.maxBatonPasses}` 
+      });
     }
 
     // Load all personas

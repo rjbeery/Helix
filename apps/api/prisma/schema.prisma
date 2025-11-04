@@ -14,6 +14,7 @@ model User {
   role                  String    @default("guest") // "master" | "guest"
   budgetCents           Int       @default(1500)
   maxBudgetPerQuestion  Int       @default(100) // cents, ~$1 per question max
+  maxBatonPasses        Int       @default(5)    // max personas in baton chain
   createdAt             DateTime  @default(now())
   
   personas              Persona[]

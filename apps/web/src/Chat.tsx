@@ -27,9 +27,10 @@ interface Persona {
 interface ChatProps {
   token: string;
   apiBase: string;
+  maxBatonPasses?: number;
 }
 
-export default function Chat({ token, apiBase }: ChatProps) {
+export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -892,6 +893,24 @@ export default function Chat({ token, apiBase }: ChatProps) {
               </div>
             </label>
           </div>
+        </div>
+      )}
+
+      {/* Warning when too many personas selected for baton mode */}
+      {activePersonaIds.length > 1 && 
+       multiAgentMode === 'baton' && 
+       activePersonaIds.length > maxBatonPasses && (
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: '#3d2200',
+          border: '1px solid #cc6600',
+          borderRadius: '8px',
+          marginTop: '12px',
+          fontSize: '13px',
+          color: '#ffcc99'
+        }}>
+          <strong>⚠️ Warning:</strong> You have {activePersonaIds.length} personas selected, but the baton 
+          pass limit is {maxBatonPasses}. Only the first {maxBatonPasses} personas will participate.
         </div>
       )}
 
