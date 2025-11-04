@@ -2,12 +2,79 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { createEngine, calculateCost } from '@helix/engines';
 import type { Message } from '@helix/core';
+import { RubricScores, scoreOf, DELTA_GAIN } from '@helix/utils';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 interface AuthedRequest extends Request {
   user?: { sub: string; role: string };
+}
+
+/**
+ * Evaluates an answer against the rubric using an LLM.
+ * Returns a truthiness score from 0 to 1.
+ */
+async function evaluateTruthiness(
+  engine: any,
+  originalQuestion: string,
+  answer: string
+): Promise<{ score: number; rubric: RubricScores }> {
+  const evaluationPrompt = `You are an answer quality evaluator. Evaluate the following answer against these criteria:
+
+Original Question: ${originalQuestion}
+
+Answer: ${answer}
+
+Rate each dimension from 0 to 1 (use decimals like 0.7, 0.85):
+1. Relevance (0-1): How well does the answer address the actual question?
+2. Correctness (0-1): Is the answer factually accurate and logically sound?
+3. Completeness (0-1): Does it cover all necessary details?
+4. Clarity (0-1): Is it clear and understandable?
+5. Brevity (0-1): Is it appropriately concise? (1 = perfectly concise, 0 = too verbose)
+
+Respond ONLY with a JSON object in this exact format:
+{
+  "relevance": 0.X,
+  "correctness": 0.X,
+  "completeness": 0.X,
+  "clarity": 0.X,
+  "brevity": 0.X
+}`;
+
+  try {
+    const response = await engine.complete({
+      messages: [
+        { role: 'system', content: 'You are a precise answer quality evaluator. Always respond with valid JSON only.' },
+        { role: 'user', content: evaluationPrompt }
+      ],
+      temperature: 0.1, // Low temperature for consistent evaluation
+      max_tokens: 200
+    });
+
+    // Extract JSON from response
+    const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn('Failed to extract JSON from evaluation response:', response.text);
+      // Return neutral scores as fallback
+      return {
+        score: 0.70,
+        rubric: { relevance: 0.7, correctness: 0.7, completeness: 0.7, clarity: 0.7, brevity: 0.7 }
+      };
+    }
+
+    const rubric: RubricScores = JSON.parse(jsonMatch[0]);
+    const score = scoreOf(rubric);
+    
+    return { score, rubric };
+  } catch (error) {
+    console.error('Error evaluating truthiness:', error);
+    // Return neutral scores on error
+    return {
+      score: 0.70,
+      rubric: { relevance: 0.7, correctness: 0.7, completeness: 0.7, clarity: 0.7, brevity: 0.7 }
+    };
+  }
 }
 
 // POST /api/chat - Send message, get completion
@@ -160,7 +227,12 @@ router.post('/baton', async (req: Request, res: Response) => {
     // Check budget
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { budgetCents: true, maxBudgetPerQuestion: true, maxBatonPasses: true }
+      select: { 
+        budgetCents: true, 
+        maxBudgetPerQuestion: true, 
+        maxBatonPasses: true,
+        truthinessThreshold: true
+      }
     });
 
     if (!user || user.budgetCents <= 0) {
@@ -329,6 +401,20 @@ router.post('/baton', async (req: Request, res: Response) => {
         content: displayContent,
         action
       });
+
+      // Evaluate truthiness after each response
+      // If the answer is good enough, stop the chain early
+      const evaluation = await evaluateTruthiness(engine, message, currentAnswer);
+      const acceptanceThreshold = user.truthinessThreshold + DELTA_GAIN;
+
+      console.log(`Baton pass ${i + 1}: Truthiness score = ${evaluation.score.toFixed(3)} (threshold: ${acceptanceThreshold.toFixed(3)})`);
+      console.log(`  Rubric: R=${evaluation.rubric.relevance.toFixed(2)} C=${evaluation.rubric.correctness.toFixed(2)} Co=${evaluation.rubric.completeness.toFixed(2)} Cl=${evaluation.rubric.clarity.toFixed(2)} B=${evaluation.rubric.brevity.toFixed(2)}`);
+
+      // If score meets threshold, stop the chain
+      if (evaluation.score >= acceptanceThreshold) {
+        console.log(`Answer meets truthiness threshold. Stopping baton chain at pass ${i + 1} of ${sortedPersonas.length}.`);
+        break;
+      }
     }
 
     // Deduct total budget
