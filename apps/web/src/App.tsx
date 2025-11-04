@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import HelixLogoTagline from "./public/images/Helix_logo_with_tagline.svg";
 import Chat from "./Chat";
 
-type VerifyResponse = { ok: true; user: { sub: string; email: string; role: "master" | "guest"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } };
+type VerifyResponse = { ok: true; user: { sub: string; email: string; role: "admin" | "user"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } };
 type LoginResponse = { token: string };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -12,7 +12,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
-  const [user, setUser] = useState<{ sub: string; email: string; role: "master" | "guest"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } | null>(null);
+  const [user, setUser] = useState<{ sub: string; email: string; role: "admin" | "user"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editedBudget, setEditedBudget] = useState(0);
   const [editedMaxPerQuestion, setEditedMaxPerQuestion] = useState(0);
