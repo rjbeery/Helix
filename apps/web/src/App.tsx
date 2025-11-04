@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import HelixLogoTagline from "./public/images/Helix_logo_with_tagline.svg";
 import Chat from "./Chat";
 
-type VerifyResponse = { ok: true; user: { sub: string; email: string; role: "master" | "guest"; budgetCents: number } };
+type VerifyResponse = { ok: true; user: { sub: string; email: string; role: "master" | "guest"; budgetCents: number; maxBudgetPerQuestion: number } };
 type LoginResponse = { token: string };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -12,7 +12,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
-  const [user, setUser] = useState<{ sub: string; email: string; role: "master" | "guest"; budgetCents: number } | null>(null);
+  const [user, setUser] = useState<{ sub: string; email: string; role: "master" | "guest"; budgetCents: number; maxBudgetPerQuestion: number } | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem("helix.token");
@@ -96,9 +96,14 @@ export default function App() {
               <span style={{ color: "#a0a0a0", fontSize: "14px" }}>
                 {user.email}
               </span>
-              <span style={{ color: "#00d1ff", fontSize: "14px", fontWeight: 600 }}>
-                ${(user.budgetCents / 100).toFixed(2)}
-              </span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                <span style={{ color: "#00d1ff", fontSize: "14px", fontWeight: 600 }}>
+                  ${(user.budgetCents / 100).toFixed(2)} total
+                </span>
+                <span style={{ color: "#888", fontSize: "11px" }}>
+                  ${(user.maxBudgetPerQuestion / 100).toFixed(2)} max/question
+                </span>
+              </div>
               <button
                 onClick={logout}
                 style={{

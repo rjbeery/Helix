@@ -49,7 +49,7 @@ auth.get("/verify", requireAuth, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true, budgetCents: true }
+      select: { id: true, email: true, role: true, budgetCents: true, maxBudgetPerQuestion: true }
     });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -60,7 +60,8 @@ auth.get("/verify", requireAuth, async (req, res) => {
         sub: user.id, 
         email: user.email,
         role: user.role as Role,
-        budgetCents: user.budgetCents
+        budgetCents: user.budgetCents,
+        maxBudgetPerQuestion: user.maxBudgetPerQuestion
       } 
     });
   } catch (error) {
