@@ -35,7 +35,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Check budget
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { budgetCents: true }
+      select: { budgetCents: true, maxBudgetPerQuestion: true }
     });
 
     if (!user || user.budgetCents <= 0) {
@@ -99,6 +99,13 @@ router.post('/', async (req: Request, res: Response) => {
       response.usage.completion_tokens
     ) : 0;
 
+    // Check max budget per question
+    if (costCents > user.maxBudgetPerQuestion) {
+      return res.status(402).json({ 
+        error: `Question cost (${costCents} cents) exceeds max budget per question (${user.maxBudgetPerQuestion} cents)` 
+      });
+    }
+
     // Save messages
     await prisma.message.create({
       data: {
@@ -153,7 +160,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     // Check budget
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { budgetCents: true }
+      select: { budgetCents: true, maxBudgetPerQuestion: true }
     });
 
     if (!user || user.budgetCents <= 0) {
@@ -258,6 +265,13 @@ router.post('/baton', async (req: Request, res: Response) => {
       // Check budget
       if (user.budgetCents < totalCostCents) {
         return res.status(402).json({ error: 'Insufficient budget mid-baton' });
+      }
+
+      // Check max budget per question
+      if (totalCostCents > user.maxBudgetPerQuestion) {
+        return res.status(402).json({ 
+          error: `Total baton cost (${totalCostCents} cents) exceeds max budget per question (${user.maxBudgetPerQuestion} cents). Stopping after ${i + 1} of ${sortedPersonas.length} personas.` 
+        });
       }
 
       // Save messages
