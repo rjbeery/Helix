@@ -13,8 +13,8 @@ const { PrismaClient } = pkg;
     const hash = await bcrypt.hash(pass, 10);
     await prisma.user.upsert({
       where: { email },
-      update: { passwordHash: hash, role: "master" },
-      create: { email, passwordHash: hash, role: "master", budgetCents: 1_500 },
+      update: { passwordHash: hash, role: "admin" },
+      create: { email, passwordHash: hash, role: "admin", budgetCents: 1_500 },
     });
     console.log("Admin ensured:", email);
   } finally {
