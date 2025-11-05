@@ -77,8 +77,9 @@ export default function App() {
 
   function openSettings() {
     if (!user) return;
-    setEditedBudget(user.budgetCents);
-    setEditedMaxPerQuestion(user.maxBudgetPerQuestion);
+    // Edit in dollars (X.XX)
+    setEditedBudget(user.budgetCents / 100);
+    setEditedMaxPerQuestion(user.maxBudgetPerQuestion / 100);
     setEditedMaxBatonPasses(user.maxBatonPasses);
     setEditedTruthinessThreshold(user.truthinessThreshold * 100);
     setShowSettings(true);
@@ -92,8 +93,9 @@ export default function App() {
         truthinessThreshold: editedTruthinessThreshold / 100,
       };
       if (user.role === "admin") {
-        body.budgetCents = Math.round(editedBudget);
-        body.maxBudgetPerQuestion = Math.round(editedMaxPerQuestion);
+        // Convert dollars to cents on save
+        body.budgetCents = Math.round(editedBudget * 100);
+        body.maxBudgetPerQuestion = Math.round(editedMaxPerQuestion * 100);
       }
       const res = await fetch(`${API_BASE}/api/users/${user.sub}`, {
         method: "PATCH",
@@ -218,13 +220,14 @@ export default function App() {
               
               <div style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
-                  Total Budget (cents)
+                  Total Budget ($)
                 </label>
                 <input
                   type="number"
-                  step="1"
+                  step="0.01"
+                  min="0"
                   value={editedBudget}
-                  onChange={(e) => setEditedBudget(parseInt(e.target.value) || 0)}
+                  onChange={(e) => setEditedBudget(parseFloat(e.target.value) || 0)}
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -245,13 +248,14 @@ export default function App() {
 
               <div style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
-                  Max Budget Per Question (cents)
+                  Max Budget Per Question ($)
                 </label>
                 <input
                   type="number"
-                  step="1"
+                  step="0.01"
+                  min="0"
                   value={editedMaxPerQuestion}
-                  onChange={(e) => setEditedMaxPerQuestion(parseInt(e.target.value) || 0)}
+                  onChange={(e) => setEditedMaxPerQuestion(parseFloat(e.target.value) || 0)}
                   style={{
                     width: "100%",
                     padding: "10px",
