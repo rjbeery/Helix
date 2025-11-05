@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 const router = Router();
 const prisma = new PrismaClient();
+const MAX_PER_Q_CENTS = parseInt(process.env.MAX_PER_Q_CENTS || '500', 10); // hard cap safeguard
 
 interface AuthedRequest extends Request {
   user?: { sub: string; role: string };
@@ -49,6 +50,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
       if (typeof maxBudgetPerQuestion !== 'number' || maxBudgetPerQuestion < 0) {
         return res.status(400).json({ error: 'Invalid maxBudgetPerQuestion' });
       }
+      if (maxBudgetPerQuestion > MAX_PER_Q_CENTS) {
+        return res.status(400).json({ error: `maxBudgetPerQuestion cannot exceed hard cap of ${MAX_PER_Q_CENTS} cents` });
+      }
       updates.maxBudgetPerQuestion = maxBudgetPerQuestion;
     }
     if (maxBatonPasses !== undefined) {
@@ -70,14 +74,18 @@ router.patch('/:id', async (req: Request, res: Response) => {
       data: updates
     });
 
-    const updatedUser = {
-      budgetCents: updatedUserAll.budgetCents,
-      maxBudgetPerQuestion: updatedUserAll.maxBudgetPerQuestion,
-      maxBatonPasses: updatedUserAll.maxBatonPasses,
-      truthinessThreshold: updatedUserAll.truthinessThreshold
-    };
+    const refreshed = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      // Cast select as any to avoid Prisma type drift issues in dev
+      select: ({
+        budgetCents: true,
+        maxBudgetPerQuestion: true,
+        maxBatonPasses: true,
+        truthinessThreshold: true
+      } as any)
+    });
 
-    return res.json(updatedUser);
+    return res.json(refreshed);
   } catch (error) {
     console.error('Update user error:', error);
     return res.status(500).json({ error: 'Failed to update user' });
