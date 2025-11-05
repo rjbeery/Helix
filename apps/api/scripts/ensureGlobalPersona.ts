@@ -12,7 +12,7 @@ const { PrismaClient } = pkg;
       "You are Helix, the central intelligence of the Helix AI system. You coordinate reasoning, memory, and collaboration between agents. Your tone is clear, calm, and precise. Prioritize accuracy, efficiency, and clarity.";
     const temperature = Number(process.env.GLOBAL_PERSONA_TEMPERATURE ?? 0.7);
     const maxTokens = Number(process.env.GLOBAL_PERSONA_MAX_TOKENS ?? 2000);
-    const avatarUrl = process.env.GLOBAL_PERSONA_AVATAR_URL || "/uploads/avatars/Helix.png";
+    const avatarUrl = process.env.GLOBAL_PERSONA_AVATAR_URL || "Helix.png";
 
     const engine = await prisma.engine.findUnique({ where: { id: engineId } });
     if (!engine || !engine.enabled) {
