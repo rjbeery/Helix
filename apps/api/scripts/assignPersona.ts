@@ -6,10 +6,10 @@ const { PrismaClient } = pkg;
   const prisma: any = new PrismaClient();
   try {
     const email = process.env.TARGET_EMAIL;
-    const engineId = process.env.ENGINE_ID || "gpt-3.5-turbo";
-    const label = process.env.LABEL || "Assistant";
-    const specialization = process.env.SPECIALIZATION || null;
-    const systemPrompt = process.env.PROMPT || "You are a helpful assistant.";
+  const engineId = process.env.ENGINE_ID || "gpt-3.5-turbo";
+  const label = process.env.LABEL || "Helix";
+  const specialization = process.env.SPECIALIZATION || "Core Intelligence";
+  const systemPrompt = process.env.PROMPT || "You are Helix, the central intelligence of the Helix AI system. You coordinate reasoning, memory, and collaboration between agents. Your tone is clear, calm, and precise. Prioritize accuracy, efficiency, and clarity. When users ask questions, respond directly, explain reasoning simply, and suggest when a specialized agent might assist.";
     const temperature = process.env.TEMPERATURE ? Number(process.env.TEMPERATURE) : 0.7;
     const maxTokens = process.env.MAX_TOKENS ? Number(process.env.MAX_TOKENS) : 2000;
 
@@ -28,6 +28,7 @@ const { PrismaClient } = pkg;
         label,
         specialization,
         systemPrompt,
+        avatarUrl: "/uploads/avatars/Helix.png",
         temperature,
         maxTokens,
       },
