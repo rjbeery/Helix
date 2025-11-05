@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
 import { createEngine, calculateCost } from '@helix/engines';
 import type { Message } from '@helix/core';
 import { RubricScores, scoreOf, DELTA_GAIN } from '@helix/utils';
@@ -80,7 +81,9 @@ Respond ONLY with a JSON object in this exact format:
 // POST /api/chat - Send message, get completion
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as AuthedRequest).user?.sub;
+    const reqUser = (req as AuthedRequest).user;
+    const userId = reqUser?.sub;
+    const isAdmin = reqUser?.role === 'admin';
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { personaId, message, conversationId } = req.body;
@@ -90,7 +93,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Load persona
     const persona = await prisma.persona.findFirst({
-      where: { id: personaId, userId },
+      where: isAdmin ? { id: personaId } : { id: personaId, userId },
       include: { 
         engine: true
       }
@@ -207,16 +210,18 @@ router.post('/', async (req: Request, res: Response) => {
       latencyMs
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Chat error:', error);
-    return res.status(500).json({ error: 'Chat request failed' });
+    return res.status(500).json({ error: 'Chat request failed', detail: error?.message || String(error) });
   }
 });
 
 // POST /api/chat/baton - Baton mode: sequential refinement
 router.post('/baton', async (req: Request, res: Response) => {
   try {
-    const userId = (req as AuthedRequest).user?.sub;
+    const reqUser = (req as AuthedRequest).user;
+    const userId = reqUser?.sub;
+    const isAdmin = reqUser?.role === 'admin';
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { personaIds, message, conversationIds } = req.body;
@@ -248,7 +253,7 @@ router.post('/baton', async (req: Request, res: Response) => {
 
     // Load all personas
     const personas = await prisma.persona.findMany({
-      where: { id: { in: personaIds }, userId },
+      where: isAdmin ? { id: { in: personaIds } } : { id: { in: personaIds }, userId },
       include: { engine: true }
     });
 
@@ -268,6 +273,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     let currentAnswer = '';
     let totalCostCents = 0;
     const resultConversationIds: (string | null)[] = [];
+    let metTruthiness = false;
 
     // Process each persona in sequence
     for (let i = 0; i < sortedPersonas.length; i++) {
@@ -413,6 +419,7 @@ router.post('/baton', async (req: Request, res: Response) => {
       // If score meets threshold, stop the chain
       if (evaluation.score >= acceptanceThreshold) {
         console.log(`Answer meets truthiness threshold. Stopping baton chain at pass ${i + 1} of ${sortedPersonas.length}.`);
+        metTruthiness = true;
         break;
       }
     }
@@ -427,12 +434,13 @@ router.post('/baton', async (req: Request, res: Response) => {
       batonChain,
       conversationIds: resultConversationIds,
       totalCostCents,
-      remainingBudgetCents: user.budgetCents - totalCostCents
+      remainingBudgetCents: user.budgetCents - totalCostCents,
+      finalReason: metTruthiness ? 'truthiness' : (batonChain.length === sortedPersonas.length ? 'exhausted' : 'unknown')
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Baton chat error:', error);
-    return res.status(500).json({ error: 'Baton chat failed' });
+    return res.status(500).json({ error: 'Baton chat failed', detail: error?.message || String(error) });
   }
 });
 
