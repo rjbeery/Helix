@@ -87,18 +87,21 @@ export default function App() {
   async function saveSettings() {
     if (!user || !token) return;
     try {
-  const res = await fetch(`${API_BASE}/api/users/${user.sub}`, {
+      const body: any = {
+        maxBatonPasses: editedMaxBatonPasses,
+        truthinessThreshold: editedTruthinessThreshold / 100,
+      };
+      if (user.role === "admin") {
+        body.budgetCents = Math.round(editedBudget * 100);
+        body.maxBudgetPerQuestion = Math.round(editedMaxPerQuestion * 100);
+      }
+      const res = await fetch(`${API_BASE}/api/users/${user.sub}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          budgetCents: Math.round(editedBudget * 100),
-          maxBudgetPerQuestion: Math.round(editedMaxPerQuestion * 100),
-          maxBatonPasses: editedMaxBatonPasses,
-          truthinessThreshold: editedTruthinessThreshold / 100,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(`Failed to update settings (${res.status})`);
       const updated = await res.json();
@@ -231,7 +234,13 @@ export default function App() {
                     color: "#fff",
                     fontSize: "14px"
                   }}
+                  disabled={user.role !== "admin"}
                 />
+                {user.role !== "admin" && (
+                  <div style={{ color: "#666", fontSize: "11px", marginTop: "4px" }}>
+                    Admin-only setting
+                  </div>
+                )}
               </div>
 
               <div style={{ marginBottom: "20px" }}>
@@ -252,7 +261,13 @@ export default function App() {
                     color: "#fff",
                     fontSize: "14px"
                   }}
+                  disabled={user.role !== "admin"}
                 />
+                {user.role !== "admin" && (
+                  <div style={{ color: "#666", fontSize: "11px", marginTop: "4px" }}>
+                    Admin-only setting
+                  </div>
+                )}
               </div>
 
               <div style={{ marginBottom: "20px" }}>

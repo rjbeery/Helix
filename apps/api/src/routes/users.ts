@@ -32,6 +32,11 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     const { budgetCents, maxBudgetPerQuestion, maxBatonPasses, truthinessThreshold } = req.body;
 
+    // Enforce: Only admins can modify budget-related fields
+    if (requestingUser.role !== 'admin' && (budgetCents !== undefined || maxBudgetPerQuestion !== undefined)) {
+      return res.status(403).json({ error: 'Only admin can modify budget settings' });
+    }
+
     // Validate inputs
     const updates: any = {};
     if (budgetCents !== undefined) {
@@ -60,16 +65,17 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
 
     // Update user
-    const updatedUser = await prisma.user.update({
+    const updatedUserAll = await prisma.user.update({
       where: { id: targetUserId },
-      data: updates,
-      select: {
-        budgetCents: true,
-        maxBudgetPerQuestion: true,
-        maxBatonPasses: true,
-        truthinessThreshold: true
-      }
+      data: updates
     });
+
+    const updatedUser = {
+      budgetCents: updatedUserAll.budgetCents,
+      maxBudgetPerQuestion: updatedUserAll.maxBudgetPerQuestion,
+      maxBatonPasses: updatedUserAll.maxBatonPasses,
+      truthinessThreshold: updatedUserAll.truthinessThreshold
+    };
 
     return res.json(updatedUser);
   } catch (error) {
