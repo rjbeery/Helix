@@ -13,6 +13,16 @@ const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
+
+const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPassword: z.string().min(8),
+});
+
+const AdminResetPasswordSchema = z.object({
+  email: z.string().email(),
+  newPassword: z.string().min(8),
+});
 auth.post("/login", async (req, res) => {
   try {
     const parsed = LoginSchema.safeParse(req.body);
@@ -47,9 +57,9 @@ auth.get("/verify", requireAuth, async (req, res) => {
     const userId = (req as any).user?.sub;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+    // Note: Prisma client types may be stale in dev; fetch full user and cast for extended fields.
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true, budgetCents: true, maxBudgetPerQuestion: true, maxBatonPasses: true, truthinessThreshold: true }
     });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -57,13 +67,13 @@ auth.get("/verify", requireAuth, async (req, res) => {
     res.json({ 
       ok: true, 
       user: { 
-        sub: user.id, 
-        email: user.email,
-        role: user.role as Role,
-        budgetCents: user.budgetCents,
-        maxBudgetPerQuestion: user.maxBudgetPerQuestion,
-        maxBatonPasses: user.maxBatonPasses,
-        truthinessThreshold: user.truthinessThreshold
+        sub: (user as any).id, 
+        email: (user as any).email,
+        role: ((user as any).role as Role),
+        budgetCents: (user as any).budgetCents,
+        maxBudgetPerQuestion: (user as any).maxBudgetPerQuestion,
+        maxBatonPasses: (user as any).maxBatonPasses,
+        truthinessThreshold: (user as any).truthinessThreshold
       } 
     });
   } catch (error) {
@@ -72,3 +82,58 @@ auth.get("/verify", requireAuth, async (req, res) => {
   }
 });
 export default auth;
+
+/**
+ * POST /auth/change-password
+ * Requires Authorization: Bearer <token>
+ * Body: { currentPassword: string, newPassword: string }
+ */
+auth.post("/change-password", requireAuth, async (req, res) => {
+  try {
+    const parsed = ChangePasswordSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
+
+    const userId = (req as any).user?.sub as string | undefined;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const ok = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+    if (!ok) return res.status(401).json({ error: "Current password is incorrect" });
+
+    const nextHash = await (bcrypt as any).hash(parsed.data.newPassword, 10);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: nextHash } });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /auth/reset-password
+ * Admin-only reset by email.
+ * Requires Authorization: Bearer <admin token>
+ * Body: { email: string, newPassword: string }
+ */
+auth.post("/reset-password", requireAuth, async (req, res) => {
+  try {
+    const parsed = AdminResetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
+
+    const requester = (req as any).user as { sub: string; role: Role } | undefined;
+    if (!requester) return res.status(401).json({ error: "Unauthorized" });
+    if (requester.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+
+    const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const nextHash = await (bcrypt as any).hash(parsed.data.newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: nextHash } });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("Admin reset password error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});

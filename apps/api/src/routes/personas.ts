@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
-import { upload, uploadToS3, getLocalAvatarUrl } from '../config/upload.js';
+import { upload, uploadToS3, getLocalAvatarUrl, validateImageFile } from '../config/upload.js';
 
 const router = Router();
 const prisma: any = new PrismaClient();
@@ -124,6 +124,17 @@ router.post('/:id/avatar', upload.single('avatar'), async (req: Request, res: Re
 
     if (!file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Validate that the file is actually a valid image (check magic bytes)
+    if (!isProduction && file.path) {
+      const isValidImage = validateImageFile(file.path);
+      if (!isValidImage) {
+        // Delete the invalid file
+        const fs = await import('fs');
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ error: 'Invalid image file. File may be corrupted or not a real image.' });
+      }
     }
 
     // Verify ownership or admin; block non-admin edits on global personas
