@@ -14,6 +14,7 @@ export const EngineRegistry = {
   // OpenAI models
   'gpt-4': createOpenAIEngine.gpt4,
   'gpt-4-turbo': createOpenAIEngine.gpt4Turbo,
+  'gpt-4o-mini': createOpenAIEngine.gpt4oMini,
   'gpt-3.5-turbo': createOpenAIEngine.gpt35Turbo,
   
   // Anthropic models
@@ -49,7 +50,7 @@ export function createEngine(
  */
 export function getAvailableModels() {
   return {
-    openai: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    openai: ['gpt-4', 'gpt-4-turbo', 'gpt-4o-mini', 'gpt-3.5-turbo'],
     anthropic: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-3.5-sonnet'],
     bedrock: ['bedrock-claude-v2', 'bedrock-claude-3-sonnet', 'bedrock-titan'],
   } as const;
@@ -67,6 +68,7 @@ export function calculateCost(
   const pricing: Record<SupportedModel, { input: number; output: number }> = {
     'gpt-4': { input: 3000, output: 6000 },
     'gpt-4-turbo': { input: 1000, output: 3000 },
+    'gpt-4o-mini': { input: 15, output: 60 },
     'gpt-3.5-turbo': { input: 50, output: 150 },
     'claude-3-opus': { input: 1500, output: 7500 },
     'claude-3-sonnet': { input: 300, output: 1500 },

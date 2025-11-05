@@ -367,12 +367,12 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
       backgroundColor: '#1a1a1a',
       borderRadius: '12px',
       boxShadow: '0 4px 12px rgba(0,0,0,.5)',
-      minHeight: '600px',
+      height: 'calc(100vh - 200px)',
       display: 'flex',
       gap: '16px'
     }}>
       {/* Left sidebar: personas column */}
-      <div style={{ width: '260px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ width: '260px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ color: '#fff', fontWeight: 700 }}>Personas ({personas.length})</div>
           <button
@@ -432,7 +432,7 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
       </div>
 
       {/* Right panel: chat and forms */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* No personas message */}
       {personas.length === 0 && !creating && (
         <div style={{
@@ -926,14 +926,16 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
       )}
 
       {selectedPersona && !editing && !creating && (
+        <>
+        {/* Messages container - scrollable */}
         <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        marginBottom: '16px',
-        padding: '16px',
-        backgroundColor: '#0d0d0d',
-        borderRadius: '8px',
-        minHeight: '400px'
+          flex: 1,
+          overflowY: 'auto',
+          marginBottom: '16px',
+          padding: '16px',
+          backgroundColor: '#0d0d0d',
+          borderRadius: '8px',
+          minHeight: 0
         }}>
         {messages.length === 0 && (
           <div style={{ 
@@ -1009,10 +1011,9 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
         )}
         <div ref={messagesEndRef} />
         </div>
-      )}
-
-      {selectedPersona && !editing && !creating && (
-        <form onSubmit={sendMessage} style={{ display: 'flex', gap: '12px' }}>
+        
+        {/* Input form - static at bottom */}
+        <form onSubmit={sendMessage} style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
         <input
           type="text"
           value={input}
@@ -1046,6 +1047,7 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
           {loading ? 'Sending...' : 'Send'}
         </button>
         </form>
+        </>
       )}
       </div>
     </div>

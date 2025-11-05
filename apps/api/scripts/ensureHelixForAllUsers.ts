@@ -6,7 +6,7 @@ const { PrismaClient } = pkg;
   const prisma: any = new PrismaClient();
   try {
     const users = await prisma.user.findMany({ select: { id: true, email: true } });
-    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-3.5-turbo";
+    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
     const label = "Helix";
     const specialization = "Core Intelligence";
     const systemPrompt = process.env.DEFAULT_PERSONA_PROMPT ||

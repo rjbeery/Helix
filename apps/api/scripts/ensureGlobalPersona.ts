@@ -5,7 +5,7 @@ const { PrismaClient } = pkg;
 (async () => {
   const prisma: any = new PrismaClient();
   try {
-    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-3.5-turbo";
+    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
     const label = process.env.GLOBAL_PERSONA_LABEL || "Helix";
     const specialization = process.env.GLOBAL_PERSONA_SPECIALIZATION || "Core Intelligence";
     const systemPrompt = process.env.GLOBAL_PERSONA_PROMPT ||
