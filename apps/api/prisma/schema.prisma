@@ -34,25 +34,27 @@ model Engine {
 }
 
 model Persona {
-  id            String   @id @default(uuid())
-  userId        String
-  engineId      String
-  label         String
+  id             String   @id @default(uuid())
+  userId         String?
+  engineId       String
+  label          String
   specialization String?
-  systemPrompt  String   @db.Text
-  avatarUrl     String?
-  temperature   Float?   @default(0.7)
-  maxTokens     Int?     @default(2000)
-  toolWhitelist String[] @default([])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  systemPrompt   String   @db.Text
+  avatarUrl      String?
+  temperature    Float?   @default(0.7)
+  maxTokens      Int?     @default(2000)
+  toolWhitelist  String[] @default([])
+  isGlobal       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  engine        Engine   @relation(fields: [engineId], references: [id])
-  conversations Conversation[]
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  engine         Engine   @relation(fields: [engineId], references: [id])
+  conversations  Conversation[]
 
   @@index([userId])
   @@index([engineId])
+  @@index([isGlobal])
 }
 
 
