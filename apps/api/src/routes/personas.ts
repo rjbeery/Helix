@@ -22,9 +22,14 @@ router.get('/', async (req: Request, res: Response) => {
   const userRole = (req as AuthedRequest).user?.role;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Admin can see all personas, regular users only see their own
+    // Admin can see all personas; users see their own plus global personas
     const personas = await prisma.persona.findMany({
-      where: userRole === 'admin' ? {} : { userId },
+      where: userRole === 'admin' ? {} : {
+        OR: [
+          { userId },
+          { isGlobal: true }
+        ]
+      },
       include: {
         engine: true
       },
@@ -61,10 +66,15 @@ router.post('/', async (req: Request, res: Response) => {
     const userId = reqUser?.sub;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { engineId, label, specialization, systemPrompt, avatarUrl, temperature, maxTokens, userId: targetUserId } = req.body;
+    const { engineId, label, specialization, systemPrompt, avatarUrl, temperature, maxTokens, userId: targetUserId, isGlobal } = req.body;
 
     if (!engineId || !label || !systemPrompt) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Do not allow non-admins to create global personas
+    if (isGlobal && reqUser?.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can create global personas' });
     }
 
     // If admin provided a target user, create persona for that user
@@ -82,14 +92,15 @@ router.post('/', async (req: Request, res: Response) => {
 
     const persona = await prisma.persona.create({
       data: {
-        userId: ownerUserId,
+        userId: isGlobal ? null : ownerUserId,
         engineId,
         label,
         specialization: specialization ?? null,
         systemPrompt,
         avatarUrl: avatarUrl || null,
         temperature: temperature ?? 0.7,
-        maxTokens: maxTokens ?? 2000
+        maxTokens: maxTokens ?? 2000,
+        isGlobal: !!isGlobal
       },
       include: { engine: true }
     });
@@ -105,6 +116,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/:id/avatar', upload.single('avatar'), async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthedRequest).user?.sub;
+    const userRole = (req as AuthedRequest).user?.role;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { id } = req.params;
@@ -114,13 +126,14 @@ router.post('/:id/avatar', upload.single('avatar'), async (req: Request, res: Re
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Verify ownership
-    const existing = await prisma.persona.findFirst({
-      where: { id, userId }
-    });
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Persona not found' });
+    // Verify ownership or admin; block non-admin edits on global personas
+    const existing = await prisma.persona.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Persona not found' });
+    if (existing.isGlobal && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Cannot modify global persona avatar' });
+    }
+    if (!existing.isGlobal && existing.userId !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     // Upload to S3 in production, use local path in development
@@ -149,18 +162,20 @@ router.post('/:id/avatar', upload.single('avatar'), async (req: Request, res: Re
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthedRequest).user?.sub;
+    const userRole = (req as AuthedRequest).user?.role;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { id } = req.params;
     const { engineId, label, specialization, systemPrompt, avatarUrl, temperature, maxTokens } = req.body;
 
-    // Verify ownership
-    const existing = await prisma.persona.findFirst({
-      where: { id, userId }
-    });
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Persona not found' });
+    // Verify ownership or admin; block non-admin edits on global personas
+    const existing = await prisma.persona.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Persona not found' });
+    if (existing.isGlobal && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Cannot modify global persona' });
+    }
+    if (!existing.isGlobal && existing.userId !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const persona = await prisma.persona.update({

@@ -8,6 +8,9 @@ import { RubricScores, scoreOf, DELTA_GAIN } from '@helix/utils';
 const router = Router();
 const prisma = new PrismaClient();
 
+type UserBudget = { budgetCents: number; maxBudgetPerQuestion: number };
+type UserLimits = { budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number };
+
 interface AuthedRequest extends Request {
   user?: { sub: string; role: string };
 }
@@ -91,9 +94,9 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing personaId or message' });
     }
 
-    // Load persona
+    // Load persona (allow admin any; user may use own or global)
     const persona = await prisma.persona.findFirst({
-      where: isAdmin ? { id: personaId } : { id: personaId, userId },
+      where: isAdmin ? { id: personaId } : { id: personaId, OR: [{ userId }, { isGlobal: true }] },
       include: { 
         engine: true
       }
@@ -103,12 +106,12 @@ router.post('/', async (req: Request, res: Response) => {
     if (!persona.engine.enabled) return res.status(400).json({ error: 'Engine disabled' });
 
     // Check budget
-    const user = await prisma.user.findUnique({
+    const userBudget = await prisma.user.findUnique({
       where: { id: userId },
       select: { budgetCents: true, maxBudgetPerQuestion: true }
-    });
+    }) as (UserBudget | null);
 
-    if (!user || user.budgetCents <= 0) {
+    if (!userBudget || userBudget.budgetCents <= 0) {
       return res.status(402).json({ error: 'Insufficient budget' });
     }
 
@@ -170,9 +173,9 @@ router.post('/', async (req: Request, res: Response) => {
     ) : 0;
 
     // Check max budget per question
-    if (costCents > user.maxBudgetPerQuestion) {
+    if (costCents > userBudget.maxBudgetPerQuestion) {
       return res.status(402).json({ 
-        error: `Question cost (${costCents} cents) exceeds max budget per question (${user.maxBudgetPerQuestion} cents)` 
+        error: `Question cost (${costCents} cents) exceeds max budget per question (${userBudget.maxBudgetPerQuestion} cents)` 
       });
     }
 
@@ -206,7 +209,7 @@ router.post('/', async (req: Request, res: Response) => {
       message: response.text,
       usage: response.usage,
       costCents,
-      remainingBudgetCents: user.budgetCents - costCents,
+      remainingBudgetCents: userBudget.budgetCents - costCents,
       latencyMs
     });
 
@@ -230,7 +233,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     }
 
     // Check budget
-    const user = await prisma.user.findUnique({
+    const userLimits = await prisma.user.findUnique({
       where: { id: userId },
       select: { 
         budgetCents: true, 
@@ -238,22 +241,22 @@ router.post('/baton', async (req: Request, res: Response) => {
         maxBatonPasses: true,
         truthinessThreshold: true
       }
-    });
+    }) as (UserLimits | null);
 
-    if (!user || user.budgetCents <= 0) {
+    if (!userLimits || userLimits.budgetCents <= 0) {
       return res.status(402).json({ error: 'Insufficient budget' });
     }
 
     // Check max baton passes
-    if (personaIds.length > user.maxBatonPasses) {
+    if (personaIds.length > userLimits.maxBatonPasses) {
       return res.status(400).json({ 
-        error: `Too many personas in baton chain (${personaIds.length}). Maximum allowed: ${user.maxBatonPasses}` 
+        error: `Too many personas in baton chain (${personaIds.length}). Maximum allowed: ${userLimits.maxBatonPasses}` 
       });
     }
 
-    // Load all personas
+    // Load all personas (allow own or global for users)
     const personas = await prisma.persona.findMany({
-      where: isAdmin ? { id: { in: personaIds } } : { id: { in: personaIds }, userId },
+      where: isAdmin ? { id: { in: personaIds } } : { id: { in: personaIds }, OR: [{ userId }, { isGlobal: true }] },
       include: { engine: true }
     });
 
@@ -348,14 +351,14 @@ router.post('/baton', async (req: Request, res: Response) => {
       totalCostCents += costCents;
 
       // Check budget
-      if (user.budgetCents < totalCostCents) {
+      if (userLimits.budgetCents < totalCostCents) {
         return res.status(402).json({ error: 'Insufficient budget mid-baton' });
       }
 
       // Check max budget per question
-      if (totalCostCents > user.maxBudgetPerQuestion) {
+      if (totalCostCents > userLimits.maxBudgetPerQuestion) {
         return res.status(402).json({ 
-          error: `Total baton cost (${totalCostCents} cents) exceeds max budget per question (${user.maxBudgetPerQuestion} cents). Stopping after ${i + 1} of ${sortedPersonas.length} personas.` 
+          error: `Total baton cost (${totalCostCents} cents) exceeds max budget per question (${userLimits.maxBudgetPerQuestion} cents). Stopping after ${i + 1} of ${sortedPersonas.length} personas.` 
         });
       }
 
@@ -411,7 +414,7 @@ router.post('/baton', async (req: Request, res: Response) => {
       // Evaluate truthiness after each response
       // If the answer is good enough, stop the chain early
       const evaluation = await evaluateTruthiness(engine, message, currentAnswer);
-      const acceptanceThreshold = user.truthinessThreshold + DELTA_GAIN;
+  const acceptanceThreshold = userLimits.truthinessThreshold + DELTA_GAIN;
 
       console.log(`Baton pass ${i + 1}: Truthiness score = ${evaluation.score.toFixed(3)} (threshold: ${acceptanceThreshold.toFixed(3)})`);
       console.log(`  Rubric: R=${evaluation.rubric.relevance.toFixed(2)} C=${evaluation.rubric.correctness.toFixed(2)} Co=${evaluation.rubric.completeness.toFixed(2)} Cl=${evaluation.rubric.clarity.toFixed(2)} B=${evaluation.rubric.brevity.toFixed(2)}`);
@@ -434,7 +437,7 @@ router.post('/baton', async (req: Request, res: Response) => {
       batonChain,
       conversationIds: resultConversationIds,
       totalCostCents,
-      remainingBudgetCents: user.budgetCents - totalCostCents,
+      remainingBudgetCents: userLimits.budgetCents - totalCostCents,
       finalReason: metTruthiness ? 'truthiness' : (batonChain.length === sortedPersonas.length ? 'exhausted' : 'unknown')
     });
 

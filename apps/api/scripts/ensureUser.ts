@@ -18,7 +18,7 @@ const { PrismaClient } = pkg;
     });
     console.log("User ensured:", email);
 
-    // Ensure default Helix persona for this user
+    // Ensure default Helix persona for this user IF a global doesn't already exist
     const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-3.5-turbo";
     const label = "Helix";
     const specialization = "Core Intelligence";
@@ -28,8 +28,10 @@ const { PrismaClient } = pkg;
     const maxTokens = 2000;
     const avatarUrl = "/uploads/avatars/Helix.png";
 
+    // If there's a global Helix persona, don't create a per-user copy
+    const globalHelix = await prisma.persona.findFirst({ where: { isGlobal: true, label } });
     const existing = await prisma.persona.findFirst({ where: { userId: user.id, label } });
-    if (!existing) {
+    if (!existing && !globalHelix) {
       const engine = await prisma.engine.findUnique({ where: { id: engineId } });
       if (!engine || !engine.enabled) {
         console.warn(`Engine ${engineId} not found or disabled; skipping persona creation for ${email}`);
@@ -40,8 +42,10 @@ const { PrismaClient } = pkg;
         });
         console.log("Helix persona created:", { id: persona.id, user: email, engine: persona.engine.displayName });
       }
-    } else {
+    } else if (existing) {
       console.log("Helix persona already exists for:", email);
+    } else if (globalHelix) {
+      console.log("Global Helix persona exists; not creating per-user Helix for:", email);
     }
   } finally {
     await prisma.$disconnect();
