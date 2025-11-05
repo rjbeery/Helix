@@ -1,0 +1,40 @@
+[
+  {
+    "email": "alice@example.com",
+    "label": "Helix",
+    "engineId": "gpt-3.5-turbo",
+    "systemPrompt": "You are Helix, the central intelligence of the Helix AI system...",
+    "specialization": "Core Intelligence",
+    "temperature": 0.7,
+    "maxTokens": 2000,
+    "avatarUrl": "/uploads/avatars/Helix.png"
+  },
+  {
+    "email": "bob@example.com",
+    "label": "Researcher",
+    "engineId": "claude-3-haiku",
+    "systemPrompt": "You summarize academic papers crisply and accurately.",
+    "specialization": "Research",
+    "temperature": 0.4,
+    "maxTokens": 1200
+  },
+{
+    "email": "alice@example.com",
+    "label": "Helix",
+    "engineId": "gpt-3.5-turbo",
+    "systemPrompt": "You are Helix, the central intelligence of the Helix AI system...",
+    "specialization": "Core Intelligence",
+    "temperature": 0.7,
+    "maxTokens": 2000,
+    "avatarUrl": "/uploads/avatars/Helix.png"
+  },
+  {
+    "email": "bob@example.com",
+    "label": "Researcher",
+    "engineId": "claude-3-haiku",
+    "systemPrompt": "You summarize academic papers crisply and accurately.",
+    "specialization": "Research",
+    "temperature": 0.4,
+    "maxTokens": 1200
+  }
+]
