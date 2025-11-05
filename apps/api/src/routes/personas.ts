@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import pkg from '@prisma/client';
+const { PrismaClient } = pkg;
 import { upload, uploadToS3, getLocalAvatarUrl } from '../config/upload.js';
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma: any = new PrismaClient();
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Extend Express Request
@@ -53,20 +54,35 @@ router.get('/engines', async (req: Request, res: Response) => {
 });
 
 // POST /api/personas - Create persona
+// Admins may create for another user by providing { userId } in the body
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const userId = (req as AuthedRequest).user?.sub;
+    const reqUser = (req as AuthedRequest).user;
+    const userId = reqUser?.sub;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { engineId, label, specialization, systemPrompt, avatarUrl, temperature, maxTokens } = req.body;
+    const { engineId, label, specialization, systemPrompt, avatarUrl, temperature, maxTokens, userId: targetUserId } = req.body;
 
     if (!engineId || !label || !systemPrompt) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // If admin provided a target user, create persona for that user
+    let ownerUserId = userId;
+    if (targetUserId) {
+      if (reqUser?.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admins can assign personas to other users' });
+      }
+      const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (!targetUser) {
+        return res.status(404).json({ error: 'Target user not found' });
+      }
+      ownerUserId = targetUserId;
+    }
+
     const persona = await prisma.persona.create({
       data: {
-        userId,
+        userId: ownerUserId,
         engineId,
         label,
         specialization: specialization ?? null,
