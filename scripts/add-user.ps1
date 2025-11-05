@@ -27,7 +27,7 @@ function Set-EnvVarSafely {
   )
   if ($null -ne $Value -and $Value -ne '') {
     $script:__oldEnv = if ($script:__oldEnv) { $script:__oldEnv } else { @{} }
-    if (-not $script:__oldEnv.ContainsKey($Name)) { $script:__oldEnv[$Name] = $env:$Name }
+    if (-not $script:__oldEnv.ContainsKey($Name)) { $script:__oldEnv[$Name] = [Environment]::GetEnvironmentVariable($Name, 'Process') }
     Set-Item -Path Env:$Name -Value $Value | Out-Null
   }
 }
@@ -36,7 +36,7 @@ function Restore-EnvVars {
   if ($script:__oldEnv) {
     foreach ($k in $script:__oldEnv.Keys) {
       $prev = $script:__oldEnv[$k]
-      if ($null -eq $prev) { Remove-Item -Path Env:$k -ErrorAction SilentlyContinue }
+      if ($null -eq $prev -or $prev -eq '') { Remove-Item -Path Env:$k -ErrorAction SilentlyContinue }
       else { Set-Item -Path Env:$k -Value $prev -ErrorAction SilentlyContinue }
     }
   }
@@ -92,7 +92,10 @@ try {
 
   Write-Host "✔ User ensured: $Email (role: $Role)" -ForegroundColor Green
   Write-Host "Tip: To verify, run:" -ForegroundColor DarkGray
-  Write-Host "  docker exec -it helix-pg psql -U helix -d helix -c \"SELECT email, role, \""createdAt"" FROM \""User"" ORDER BY \""createdAt"" DESC LIMIT 10;\""" -ForegroundColor DarkGray
+  $verify = @'
+docker exec -it helix-pg psql -U helix -d helix -c "SELECT email, role, ""createdAt"" FROM ""User"" ORDER BY ""createdAt"" DESC LIMIT 10;"
+'@
+  Write-Host "  $verify" -ForegroundColor DarkGray
 }
 catch {
   Write-Error $_
