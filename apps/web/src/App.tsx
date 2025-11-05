@@ -14,8 +14,8 @@ export default function App() {
   const [status, setStatus] = useState<string>("");
   const [user, setUser] = useState<{ sub: string; email: string; role: "admin" | "user"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [editedBudget, setEditedBudget] = useState(0);
-  const [editedMaxPerQuestion, setEditedMaxPerQuestion] = useState(0);
+  const [editedBudget, setEditedBudget] = useState<string>("0.00");
+  const [editedMaxPerQuestion, setEditedMaxPerQuestion] = useState<string>("0.00");
   const [editedMaxBatonPasses, setEditedMaxBatonPasses] = useState(0);
   const [editedTruthinessThreshold, setEditedTruthinessThreshold] = useState(0);
 
@@ -77,12 +77,40 @@ export default function App() {
 
   function openSettings() {
     if (!user) return;
-    // Edit in dollars (X.XX)
-    setEditedBudget(user.budgetCents / 100);
-    setEditedMaxPerQuestion(user.maxBudgetPerQuestion / 100);
+    // Edit in dollars (X.XX) as strings
+    setEditedBudget((user.budgetCents / 100).toFixed(2));
+    setEditedMaxPerQuestion((user.maxBudgetPerQuestion / 100).toFixed(2));
     setEditedMaxBatonPasses(user.maxBatonPasses);
     setEditedTruthinessThreshold(user.truthinessThreshold * 100);
     setShowSettings(true);
+  }
+
+  // Money input helpers (allow only digits and one dot; max 2 decimals)
+  function sanitizeMoneyInput(value: string): string {
+    // Remove invalid chars
+    let v = value.replace(/[^0-9.]/g, "");
+    // Keep only first dot
+    const firstDot = v.indexOf(".");
+    if (firstDot !== -1) {
+      v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+    }
+    // Limit to two decimals
+    if (firstDot !== -1) {
+      const [intPart, decPart] = v.split(".");
+      v = intPart + "." + decPart.slice(0, 2);
+    }
+    // Prevent leading zeros like 000 -> 0
+    v = v.replace(/^0+(?=\d)/, "");
+    // Edge case: empty or just dot
+    if (v === ".") v = "0.";
+    return v;
+  }
+
+  function normalizeMoneyOnBlur(value: string): string {
+    if (!value || value === "." || value === "0.") return "0.00";
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0) return "0.00";
+    return num.toFixed(2);
   }
 
   async function saveSettings() {
@@ -93,9 +121,9 @@ export default function App() {
         truthinessThreshold: editedTruthinessThreshold / 100,
       };
       if (user.role === "admin") {
-        // Convert dollars to cents on save
-        body.budgetCents = Math.round(editedBudget * 100);
-        body.maxBudgetPerQuestion = Math.round(editedMaxPerQuestion * 100);
+        // Convert dollars (strings) to cents on save
+        body.budgetCents = Math.round((parseFloat(editedBudget) || 0) * 100);
+        body.maxBudgetPerQuestion = Math.round((parseFloat(editedMaxPerQuestion) || 0) * 100);
       }
       const res = await fetch(`${API_BASE}/api/users/${user.sub}`, {
         method: "PATCH",
@@ -223,11 +251,12 @@ export default function App() {
                   Total Budget ($)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
                   value={editedBudget}
-                  onChange={(e) => setEditedBudget(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setEditedBudget(sanitizeMoneyInput(e.target.value))}
+                  onBlur={(e) => setEditedBudget(normalizeMoneyOnBlur(e.target.value))}
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -251,11 +280,12 @@ export default function App() {
                   Max Budget Per Question ($)
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
                   value={editedMaxPerQuestion}
-                  onChange={(e) => setEditedMaxPerQuestion(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setEditedMaxPerQuestion(sanitizeMoneyInput(e.target.value))}
+                  onBlur={(e) => setEditedMaxPerQuestion(normalizeMoneyOnBlur(e.target.value))}
                   style={{
                     width: "100%",
                     padding: "10px",

@@ -12,16 +12,26 @@ const { PrismaClient } = pkg;
     if (!user) throw new Error(`Admin user not found: ${email} (run scripts/ensureAdmin.ts)`);
 
     const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-3.5-turbo";
-    const label = process.env.DEFAULT_PERSONA_LABEL || "Assistant";
-    const systemPrompt = process.env.DEFAULT_PERSONA_PROMPT || "You are a helpful, concise assistant.";
-    const specialization = process.env.DEFAULT_PERSONA_SPECIALIZATION || null;
+  const label = process.env.DEFAULT_PERSONA_LABEL || "Helix";
+  const systemPrompt = process.env.DEFAULT_PERSONA_PROMPT || "You are Helix, the central intelligence of the Helix AI system. You coordinate reasoning, memory, and collaboration between agents. Your tone is clear, calm, and precise. Prioritize accuracy, efficiency, and clarity. When users ask questions, respond directly, explain reasoning simply, and suggest when a specialized agent might assist.";
+  const specialization = process.env.DEFAULT_PERSONA_SPECIALIZATION || "Core Intelligence";
     const temperature = process.env.DEFAULT_PERSONA_TEMPERATURE ? Number(process.env.DEFAULT_PERSONA_TEMPERATURE) : 0.7;
     const maxTokens = process.env.DEFAULT_PERSONA_MAX_TOKENS ? Number(process.env.DEFAULT_PERSONA_MAX_TOKENS) : 2000;
 
-    // Skip if a persona with same label already exists for this user
-    const existing = await prisma.persona.findFirst({ where: { userId: user.id, label } });
-    if (existing) {
-      console.log(`Persona already exists for ${email} with label '${label}':`, existing.id);
+    // If a 'Helix' persona exists, skip; else if an older default 'Assistant' exists, rename/update it
+    const existingHelix = await prisma.persona.findFirst({ where: { userId: user.id, label: label } });
+    if (existingHelix) {
+      console.log(`Persona already exists for ${email} with label '${label}':`, existingHelix.id);
+      return;
+    }
+    const legacy = await prisma.persona.findFirst({ where: { userId: user.id, label: "Assistant" } });
+    if (legacy) {
+      const updated = await prisma.persona.update({
+        where: { id: legacy.id },
+        data: { label, specialization, systemPrompt, engineId },
+        include: { engine: true }
+      });
+      console.log("Default persona renamed/updated:", { id: updated.id, user: email, engine: updated.engine.displayName, label: updated.label });
       return;
     }
 
