@@ -11,7 +11,7 @@ const { PrismaClient } = pkg;
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new Error(`Admin user not found: ${email} (run scripts/ensureAdmin.ts)`);
 
-    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-3.5-turbo";
+    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
   const label = process.env.DEFAULT_PERSONA_LABEL || "Helix";
   const systemPrompt = process.env.DEFAULT_PERSONA_PROMPT || "You are Helix, the central intelligence of the Helix AI system. You coordinate reasoning, memory, and collaboration between agents. Your tone is clear, calm, and precise. Prioritize accuracy, efficiency, and clarity. When users ask questions, respond directly, explain reasoning simply, and suggest when a specialized agent might assist.";
   const specialization = process.env.DEFAULT_PERSONA_SPECIALIZATION || "Core Intelligence";

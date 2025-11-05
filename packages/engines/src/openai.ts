@@ -139,5 +139,6 @@ export class OpenAIEngine implements Engine {
 export const createOpenAIEngine = {
   gpt4: (config?: EngineConfig) => new OpenAIEngine('gpt-4', config),
   gpt4Turbo: (config?: EngineConfig) => new OpenAIEngine('gpt-4-turbo-preview', config),
+  gpt4oMini: (config?: EngineConfig) => new OpenAIEngine('gpt-4o-mini', config),
   gpt35Turbo: (config?: EngineConfig) => new OpenAIEngine('gpt-3.5-turbo', config),
 };

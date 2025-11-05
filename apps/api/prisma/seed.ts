@@ -23,10 +23,18 @@ async function main() {
       costPer1MOutput: 3000
     },
     {
+      id: 'gpt-4o-mini',
+      provider: 'openai',
+      displayName: 'GPT-4o Mini',
+      enabled: true,
+      costPer1MInput: 15,
+      costPer1MOutput: 60
+    },
+    {
       id: 'gpt-3.5-turbo',
       provider: 'openai',
       displayName: 'GPT-3.5 Turbo',
-      enabled: true,
+      enabled: false,
       costPer1MInput: 50,
       costPer1MOutput: 150
     },

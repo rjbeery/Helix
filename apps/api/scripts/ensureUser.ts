@@ -19,7 +19,7 @@ const { PrismaClient } = pkg;
     console.log("User ensured:", email);
 
     // Ensure default Helix persona for this user IF a global doesn't already exist
-    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-3.5-turbo";
+    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
     const label = "Helix";
     const specialization = "Core Intelligence";
     const systemPrompt = process.env.DEFAULT_PERSONA_PROMPT ||
