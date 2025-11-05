@@ -77,8 +77,8 @@ export default function App() {
 
   function openSettings() {
     if (!user) return;
-    setEditedBudget(user.budgetCents / 100);
-    setEditedMaxPerQuestion(user.maxBudgetPerQuestion / 100);
+    setEditedBudget(user.budgetCents);
+    setEditedMaxPerQuestion(user.maxBudgetPerQuestion);
     setEditedMaxBatonPasses(user.maxBatonPasses);
     setEditedTruthinessThreshold(user.truthinessThreshold * 100);
     setShowSettings(true);
@@ -92,8 +92,8 @@ export default function App() {
         truthinessThreshold: editedTruthinessThreshold / 100,
       };
       if (user.role === "admin") {
-        body.budgetCents = Math.round(editedBudget * 100);
-        body.maxBudgetPerQuestion = Math.round(editedMaxPerQuestion * 100);
+        body.budgetCents = Math.round(editedBudget);
+        body.maxBudgetPerQuestion = Math.round(editedMaxPerQuestion);
       }
       const res = await fetch(`${API_BASE}/api/users/${user.sub}`, {
         method: "PATCH",
@@ -145,13 +145,13 @@ export default function App() {
                 title="Click to edit settings"
               >
                 <span style={{ color: "#00d1ff", fontSize: "14px", fontWeight: 600 }}>
-                  ${(user.budgetCents / 100).toFixed(2)} total
+                  {user.budgetCents}¢ total
                 </span>
                 <span 
                   style={{ color: "#888", fontSize: "11px" }}
-                  title={`Max cost per question: $${(user.maxBudgetPerQuestion / 100).toFixed(2)} | Max personas in sequential baton chain: ${user.maxBatonPasses} | Answer quality threshold: ${(user.truthinessThreshold * 100).toFixed(0)}% (agents stop when answer is good enough)`}
+                  title={`Max cost per question: ${user.maxBudgetPerQuestion} cents | Max personas in sequential baton chain: ${user.maxBatonPasses} | Answer quality threshold: ${(user.truthinessThreshold * 100).toFixed(0)}% (agents stop when answer is good enough)`}
                 >
-                  ${(user.maxBudgetPerQuestion / 100).toFixed(2)} max/question • max {user.maxBatonPasses} baton passes • {(user.truthinessThreshold * 100).toFixed(0)}% truthiness
+                  {user.maxBudgetPerQuestion}¢ max/question • max {user.maxBatonPasses} baton passes • {(user.truthinessThreshold * 100).toFixed(0)}% truthiness
                 </span>
               </div>
               <button
@@ -218,13 +218,13 @@ export default function App() {
               
               <div style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
-                  Total Budget ($)
+                  Total Budget (cents)
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={editedBudget}
-                  onChange={(e) => setEditedBudget(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setEditedBudget(parseInt(e.target.value) || 0)}
                   style={{
                     width: "100%",
                     padding: "10px",
@@ -245,13 +245,13 @@ export default function App() {
 
               <div style={{ marginBottom: "20px" }}>
                 <label style={{ display: "block", color: "#a0a0a0", fontSize: "13px", marginBottom: "6px" }}>
-                  Max Budget Per Question ($)
+                  Max Budget Per Question (cents)
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={editedMaxPerQuestion}
-                  onChange={(e) => setEditedMaxPerQuestion(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => setEditedMaxPerQuestion(parseInt(e.target.value) || 0)}
                   style={{
                     width: "100%",
                     padding: "10px",
