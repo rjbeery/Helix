@@ -338,12 +338,17 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
           // Add baton chain messages
           setMessages(prev => [
             ...prev,
-            ...data.batonChain.map((step: any) => ({
-              role: 'assistant' as const,
-              content: step.content,
-              personaId: step.personaId,
-              batonAction: step.action
-            }))
+            ...data.batonChain.map((step: any, idx: number) => {
+              const isLast = idx === data.batonChain.length - 1;
+              const reachedTruthiness = data.finalReason === 'truthiness' && isLast;
+              const labeledContent = reachedTruthiness ? `FINAL: ${step.content}` : step.content;
+              return {
+                role: 'assistant' as const,
+                content: labeledContent,
+                personaId: step.personaId,
+                batonAction: step.action
+              };
+            })
           ]);
         })
         .catch((err) => {
