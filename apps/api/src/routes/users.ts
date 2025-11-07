@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
 const router = Router();
-const prisma = new PrismaClient();
+let prisma: PrismaClient | null = null;
+const db = () => (prisma ??= new PrismaClient());
 const MAX_PER_Q_CENTS = parseInt(process.env.MAX_PER_Q_CENTS || '500', 10); // hard cap safeguard
 
 interface AuthedRequest extends Request {
@@ -18,7 +19,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
   // Users can only edit their own settings (unless they're admin)
-    const requestingUser = await prisma.user.findUnique({
+  const requestingUser = await db().user.findUnique({
       where: { id: userId },
       select: { role: true }
     });
@@ -69,12 +70,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
 
     // Update user
-    const updatedUserAll = await prisma.user.update({
+  const updatedUserAll = await db().user.update({
       where: { id: targetUserId },
       data: updates
     });
 
-    const refreshed = await prisma.user.findUnique({
+  const refreshed = await db().user.findUnique({
       where: { id: targetUserId },
       // Cast select as any to avoid Prisma type drift issues in dev
       select: ({

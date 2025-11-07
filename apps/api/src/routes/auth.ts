@@ -7,7 +7,8 @@ import { z } from "zod";
 import type { Role } from "../types/auth.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 const { PrismaClient } = pkg;
-const prisma = new PrismaClient();
+let prisma: InstanceType<typeof PrismaClient> | null = null;
+const db = () => (prisma ??= new PrismaClient());
 const auth = Router();
 const LoginSchema = z.object({
   email: z.string().email(),
@@ -32,7 +33,7 @@ auth.post("/login", async (req, res) => {
     }
     const { email, password } = parsed.data;
     console.log('Looking up user:', email);
-    const user = await prisma.user.findUnique({ where: { email } });
+  const user = await db().user.findUnique({ where: { email } });
     if (!user) {
       console.error('User not found:', email);
       return res.status(401).json({ error: "Invalid credentials" });
@@ -103,7 +104,7 @@ auth.post("/change-password", requireAuth, async (req, res) => {
     if (!ok) return res.status(401).json({ error: "Current password is incorrect" });
 
     const nextHash = await (bcrypt as any).hash(parsed.data.newPassword, 10);
-    await prisma.user.update({ where: { id: userId }, data: { passwordHash: nextHash } });
+  await db().user.update({ where: { id: userId }, data: { passwordHash: nextHash } });
     return res.json({ ok: true });
   } catch (error) {
     console.error("Change password error:", error);
@@ -126,11 +127,11 @@ auth.post("/reset-password", requireAuth, async (req, res) => {
     if (!requester) return res.status(401).json({ error: "Unauthorized" });
     if (requester.role !== "admin") return res.status(403).json({ error: "Forbidden" });
 
-    const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await db().user.findUnique({ where: { email: parsed.data.email } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const nextHash = await (bcrypt as any).hash(parsed.data.newPassword, 10);
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: nextHash } });
+  await db().user.update({ where: { id: user.id }, data: { passwordHash: nextHash } });
     return res.json({ ok: true });
   } catch (error) {
     console.error("Admin reset password error:", error);

@@ -11,5 +11,5 @@
   <path d="M104 16c6 0 6-8 12-8" fill="none" stroke="url(#g)" stroke-width="2"></path>
   <path d="M104 16c6 0 6 8 12 8" fill="none" stroke="url(#g)" stroke-width="2"></path>
   <!-- Tagline - smaller, left-aligned -->
-  <text x="0" y="34" font-family="Inter,ui-sans-serif,system-ui" font-size="7" fill="#9ca3af" style="font-style: italic;">Synthetic thought, human design.</text>
+  <text x="0" y="34" font-family="Inter,ui-sans-serif,system-ui" font-size="5.5" fill="#9ca3af" style="font-style: italic;">Synthetic thought, human design.</text>
 </svg>

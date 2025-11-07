@@ -1,16 +1,17 @@
 FROM node:20-alpine
-WORKDIR /workspace
-ENV CI=true
-# Make pnpm available in this container
-RUN corepack enable
 
-# Bring the whole repo (monorepo install needs workspace files)
+WORKDIR /workspace
 COPY . .
 
-# Install deps for the workspace (from repo root), then run API
-WORKDIR /workspace/apps/api
+# Enable pnpm and install all dependencies (including devDependencies)
+RUN corepack enable
 RUN pnpm -w install --frozen-lockfile
 
-ENV PORT=3001
-EXPOSE 3001
-CMD ["pnpm","start"]
+# Navigate to apps/api and generate Prisma client using the local node_modules
+WORKDIR /workspace/apps/api
+RUN npx prisma generate
+
+# Set production mode for runtime
+ENV NODE_ENV=production
+
+CMD ["pnpm", "exec", "tsx", "src/server.ts"]

@@ -1,0 +1,66 @@
+# Dependencies
+node_modules
+**/node_modules
+npm-debug.log
+yarn-error.log
+.pnpm-store
+
+# Build outputs
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# Testing
+coverage
+.nyc_output
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+infra/terraform/.terraform
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/.terraform.lock.hcl
+
+# Copilot packaged output
+.copilot-packaged
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Scripts that aren't needed in container
+scripts
+*.ps1
+
+# Deployment configs
+docker-compose.yml
+Dockerfile*
+!apps/api/Dockerfile
+
+# Frontend app (not needed for API)
+apps/web
+
+# Uploads (if they exist locally)
+apps/api/uploads
