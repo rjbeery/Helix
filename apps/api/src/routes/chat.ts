@@ -6,7 +6,8 @@ import type { Message } from '@helix/core';
 import { RubricScores, scoreOf, DELTA_GAIN } from '@helix/utils';
 
 const router = Router();
-const prisma = new PrismaClient();
+let prisma: PrismaClient | null = null;
+const db = () => (prisma ??= new PrismaClient());
 
 type UserBudget = { budgetCents: number; maxBudgetPerQuestion: number };
 type UserLimits = { budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number };
@@ -95,7 +96,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Load persona (allow admin any; user may use own or global)
-    const persona = await prisma.persona.findFirst({
+  const persona = await db().persona.findFirst({
       where: isAdmin ? { id: personaId } : { id: personaId, OR: [{ userId }, { isGlobal: true }] },
       include: { 
         engine: true
@@ -106,7 +107,7 @@ router.post('/', async (req: Request, res: Response) => {
     if (!persona.engine.enabled) return res.status(400).json({ error: 'Engine disabled' });
 
     // Check budget
-    const userBudget = await prisma.user.findUnique({
+  const userBudget = await db().user.findUnique({
       where: { id: userId },
       select: { budgetCents: true, maxBudgetPerQuestion: true }
     }) as (UserBudget | null);
@@ -118,7 +119,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Get or create conversation
     let conversation;
     if (conversationId) {
-      conversation = await prisma.conversation.findFirst({
+  conversation = await db().conversation.findFirst({
         where: { id: conversationId, personaId: persona.id },
         include: {
           messages: { orderBy: { createdAt: 'asc' }, take: 20 }
@@ -127,7 +128,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     if (!conversation) {
-      conversation = await prisma.conversation.create({
+  conversation = await db().conversation.create({
         data: { personaId: persona.id },
         include: { messages: true }
       });
@@ -180,7 +181,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Save messages
-    await prisma.message.create({
+  await db().message.create({
       data: {
         conversationId: conversation.id,
         role: 'user',
@@ -189,7 +190,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
-    await prisma.message.create({
+  await db().message.create({
       data: {
         conversationId: conversation.id,
         role: 'assistant',
@@ -199,7 +200,7 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     // Deduct budget
-    await prisma.user.update({
+  await db().user.update({
       where: { id: userId },
       data: { budgetCents: { decrement: costCents } }
     });
