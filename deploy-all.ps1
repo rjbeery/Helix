@@ -28,6 +28,8 @@ param(
   [string]$EcrApiRepo   = '',
   [string]$EcrWebRepo   = '',
   [string]$ImageTag     = 'latest',
+  # Separate tag suffix for lambda image (will form <ImageTag>-lambda)
+  [string]$LambdaImageSuffix = 'lambda',
 
   # Lambda function name for API (matches Terraform default "helixai-api")
   [string]$LambdaFunctionName = 'helixai-api',
@@ -62,7 +64,9 @@ try {
     Write-Host "Building docker images (api + web) using docker compose..."
     docker compose build --pull api web
     Write-Host "Building AWS Lambda image for API (Dockerfile.lambda)..."
-    docker build --pull -f Dockerfile.lambda -t helixsource-api-lambda:latest .
+  $lambdaTag = "$ImageTag-$LambdaImageSuffix"
+  Write-Host "Building Lambda image (linux/amd64, provenance disabled) tag: $lambdaTag"
+  docker build --pull --provenance=false --platform=linux/amd64 -f Dockerfile.lambda -t helixsource-api-lambda:$lambdaTag .
   } else {
     Write-Host "Skipping docker build (--SkipDockerBuild)."
   }
@@ -89,17 +93,17 @@ try {
       }
 
       # Push Lambda-optimized image
-      $localLambdaImage = 'helixsource-api-lambda:latest'
-      $remoteLambda = "$($ecrHost)/$($EcrApiRepo):$($ImageTag)"
-      Write-Host "Tagging $localLambdaImage -> $remoteLambda"
-      docker tag $localLambdaImage $remoteLambda
+  $localLambdaImage = "helixsource-api-lambda:$ImageTag-$LambdaImageSuffix"
+  $remoteLambda = "$($ecrHost)/$($EcrApiRepo):$($ImageTag)-$LambdaImageSuffix"
+  Write-Host "Tagging $localLambdaImage -> $remoteLambda"
+  docker tag $localLambdaImage $remoteLambda
       Write-Host "Pushing $remoteLambda"
       docker push $remoteLambda
 
       if (-not $SkipLambdaUpdate) {
         if (-not $AwsRegion) { throw "-AwsRegion is required to update Lambda" }
-        Write-Host "Updating Lambda function code to $remoteLambda"
-        & $awsCmd @awsCommonArgs lambda update-function-code --function-name $LambdaFunctionName --image-uri $remoteLambda | Out-Null
+  Write-Host "Updating Lambda function code to $remoteLambda (linux/amd64)"
+  & $awsCmd @awsCommonArgs lambda update-function-code --function-name $LambdaFunctionName --image-uri $remoteLambda | Out-Null
         Write-Host "Publish new version and set to $LATEST (optional step skipped)"
       } else {
         Write-Host "Skipping Lambda update (--SkipLambdaUpdate)."

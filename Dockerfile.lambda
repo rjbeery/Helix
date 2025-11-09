@@ -20,6 +20,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Ensure package-local node_modules are linked correctly now that sources exist
 RUN pnpm -C apps/api install --frozen-lockfile
+# Build workspace packages that API depends on
+RUN pnpm -r --filter '@helix/*' build || true
 # Prisma client (types only; DB not required at build time)
 RUN pnpm -C apps/api prisma generate || true
 RUN pnpm -C apps/api build
@@ -27,15 +29,66 @@ RUN pnpm -C apps/api build
 # --- lambda runtime image
 # Use AWS Lambda Node.js 20 base image with npm pre-installed
 FROM public.ecr.aws/lambda/nodejs:20 AS lambda
-# Set working directory to API app
 WORKDIR /var/task
-# Copy compiled app and package.json
+# Copy compiled API dist & prisma
 COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/package.json ./package.json
-# copy prisma client runtime (if used at runtime)
 COPY --from=build /app/apps/api/prisma ./prisma
-# Install production dependencies using npm (no pnpm workspace complexity)
-RUN npm install --omit=dev --no-package-lock
+# Copy root node_modules (pnpm hoisted store and deps)
+COPY --from=build /app/node_modules ./node_modules
+# Copy internal packages (built artifacts already in their dist folders)
+COPY --from=build /app/packages ./packages
+# Copy API app node_modules and its package.json
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/apps/api/package.json ./package.json
 
-# Command points to the Lambda handler (file: dist/lambda.js, export: handler)
+# Copy all runtime dependencies from API node_modules to root node_modules
+# Adjust symlink targets from ../../../node_modules/.pnpm to ./.pnpm
+RUN set -e; \
+for dep in /var/task/apps/api/node_modules/*; do \
+	name="$(basename "$dep")"; \
+	if [ -d "$dep" ] && [ "$(echo "$name" | grep '^@')" ]; then \
+		# Scoped package directory (@prisma, @aws-sdk, etc)
+		mkdir -p "/var/task/node_modules/$name"; \
+		for sub in "$dep"/*; do \
+			if [ -e "$sub" ]; then \
+				subname="$(basename "$sub")"; \
+				if [ ! -e "/var/task/node_modules/$name/$subname" ]; then \
+					if [ -L "$sub" ]; then \
+						target="$(readlink "$sub")"; \
+						# Adjust: ../../../../node_modules/.pnpm -> ../.pnpm
+						adjusted_target="$(echo "$target" | sed 's|^\.\./\.\./\.\./\.\./node_modules/|../|')"; \
+						ln -s "$adjusted_target" "/var/task/node_modules/$name/$subname"; \
+					else \
+						cp -r "$sub" "/var/task/node_modules/$name/$subname"; \
+					fi; \
+				fi; \
+			fi; \
+		done; \
+	elif [ ! -e "/var/task/node_modules/$name" ]; then \
+		# Regular package
+		if [ -L "$dep" ]; then \
+			target="$(readlink "$dep")"; \
+			adjusted_target="$(echo "$target" | sed 's|^\.\./\.\./\.\./node_modules/|./|')"; \
+			ln -s "$adjusted_target" "/var/task/node_modules/$name"; \
+		else \
+			cp -r "$dep" "/var/task/node_modules/$name"; \
+		fi; \
+	fi; \
+done; \
+# Create symlinks for internal @helix packages from /var/task/packages to /var/task/node_modules/@helix
+mkdir -p /var/task/node_modules/@helix; \
+for pkg in /var/task/packages/*; do \
+	if [ -d "$pkg" ] && [ -f "$pkg/package.json" ]; then \
+		name="$(basename "$pkg")"; \
+		rm -rf "/var/task/node_modules/@helix/$name"; \
+		ln -s "../../packages/$name" "/var/task/node_modules/@helix/$name"; \
+	fi; \
+done; \
+missing=0; \
+for req in serverless-http express @prisma/client jsonwebtoken cors zod bcrypt bcryptjs; do \
+	if [ ! -e "/var/task/node_modules/$req" ]; then echo "Missing runtime dep: $req" >&2; missing=1; fi; \
+done; \
+if [ "$missing" -ne 0 ]; then exit 1; fi
+
+# Handler (ESM) located at dist/lambda.js export 'handler'
 CMD ["dist/lambda.handler"]
