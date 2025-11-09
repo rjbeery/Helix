@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Express } from "express";
 import cors from "cors";
 import auth from "./routes/auth.js";
 import personas from "./routes/personas.js";
@@ -6,9 +6,10 @@ import chat from "./routes/chat.js";
 import users from "./routes/users.js";
 import { requireAuth, type AuthedRequest } from "./middleware/requireAuth.js";
 import { initSecrets } from "./config/secrets.js";
+import dbRouter from "./routes/db.js";
 // Initialize secrets at cold start (no-op locally)
 await initSecrets();
-export const app = express();
+export const app: Express = express();
 // CORS: allow local dev and production site by default; override via ALLOWED_ORIGINS (comma-separated)
 const defaultOrigins = ["http://localhost:5173", "https://helixai.live"];
 const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(",") || defaultOrigins).map((s) => s.trim());
@@ -29,6 +30,8 @@ if (process.env.NODE_ENV !== 'production') {
 }
 // health
 app.get("/health", (_req, res) => res.json({ ok: true }));
+// db health (connectivity to database)
+app.use("/db", dbRouter);
 // auth routes
 app.use("/auth", auth);
 // personas routes (protected)
