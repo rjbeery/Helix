@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Router as RouterType } from "express";
 import * as bcrypt from "bcryptjs";
 import * as jwtRaw from "jsonwebtoken";
 const jwt = (jwtRaw as any).default ?? (jwtRaw as any);
@@ -8,8 +8,13 @@ import type { Role } from "../types/auth.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 const { PrismaClient } = pkg;
 let prisma: InstanceType<typeof PrismaClient> | null = null;
-const db = () => (prisma ??= new PrismaClient());
-const auth = Router();
+const db = (): InstanceType<typeof PrismaClient> => (prisma ??= new PrismaClient());
+// Minimal helper to classify DB connectivity failures without tight-coupling to Prisma error types
+const isDbUnavailable = (err: unknown): boolean => {
+  const msg = (err && (err as any).message) ? String((err as any).message) : String(err ?? "");
+  return msg.includes("PrismaClientInitializationError");
+};
+const auth: RouterType = Router();
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -33,7 +38,7 @@ auth.post("/login", async (req, res) => {
     }
     const { email, password } = parsed.data;
     console.log('Looking up user:', email);
-  const user = await db().user.findUnique({ where: { email } });
+    const user = await db().user.findUnique({ where: { email } });
     if (!user) {
       console.error('User not found:', email);
       return res.status(401).json({ error: "Invalid credentials" });
@@ -44,12 +49,15 @@ auth.post("/login", async (req, res) => {
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
     const secret = process.env.JWT_SECRET;
     if (!secret) return res.status(500).json({ error: "Server misconfigured: missing JWT_SECRET" });
-  const role: Role = user.role === "admin" ? "admin" : "user";
+    const role: Role = user.role === "admin" ? "admin" : "user";
     const ttl = process.env.TOKEN_TTL || "6h";
     const token = jwt.sign({ sub: user.id, role }, secret, { expiresIn: ttl });
     return res.json({ token });
   } catch (error) {
     console.error('Login error:', error);
+    if (isDbUnavailable(error)) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -59,7 +67,7 @@ auth.get("/verify", requireAuth, async (req, res) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // Note: Prisma client types may be stale in dev; fetch full user and cast for extended fields.
-    const user = await prisma.user.findUnique({
+    const user = await db().user.findUnique({
       where: { id: userId },
     });
 
@@ -79,6 +87,9 @@ auth.get("/verify", requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Verify error:', error);
+    if (isDbUnavailable(error)) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -97,7 +108,7 @@ auth.post("/change-password", requireAuth, async (req, res) => {
     const userId = (req as any).user?.sub as string | undefined;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await db().user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const ok = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
@@ -108,6 +119,9 @@ auth.post("/change-password", requireAuth, async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     console.error("Change password error:", error);
+    if (isDbUnavailable(error)) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
     return res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -135,6 +149,9 @@ auth.post("/reset-password", requireAuth, async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     console.error("Admin reset password error:", error);
+    if (isDbUnavailable(error)) {
+      return res.status(503).json({ error: 'Database unavailable' });
+    }
     return res.status(500).json({ error: "Internal server error" });
   }
 });
