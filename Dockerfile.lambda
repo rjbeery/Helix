@@ -30,8 +30,9 @@ RUN pnpm -C apps/api build
 # Use AWS Lambda Node.js 20 base image with npm pre-installed
 FROM public.ecr.aws/lambda/nodejs:20 AS lambda
 WORKDIR /var/task
-# Copy compiled API dist & prisma
-COPY --from=build /app/apps/api/dist ./dist
+# Copy compiled API dist & prisma (TypeScript outputs to dist/apps/api/src due to monorepo structure)
+COPY --from=build /app/apps/api/dist/apps/api/src ./dist
+COPY --from=build /app/apps/api/dist/packages ./packages-dist
 COPY --from=build /app/apps/api/prisma ./prisma
 # Copy root node_modules (pnpm hoisted store and deps)
 COPY --from=build /app/node_modules ./node_modules
