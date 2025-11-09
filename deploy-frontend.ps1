@@ -12,7 +12,9 @@ if ($AwsRegion)  { $awsCommonArgs += @("--region",  $AwsRegion) }
 
 Push-Location apps/web
 pnpm install
+$env:VITE_API_URL = "https://api.helixai.live"
 pnpm build
+Remove-Item Env:\VITE_API_URL
 Pop-Location
 
 & $awsCmd @awsCommonArgs s3 sync apps/web/dist/ "s3://$Bucket" --delete --cache-control "public,max-age=31536000,immutable"
