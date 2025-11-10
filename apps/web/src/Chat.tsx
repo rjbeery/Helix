@@ -516,24 +516,23 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
               </div>
             )}
           </div>
-          <button
-            onClick={startEdit}
-            disabled={selectedPersona.label === 'Helix'}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: selectedPersona.label === 'Helix' ? '#555' : '#00d1ff',
-              color: selectedPersona.label === 'Helix' ? '#888' : '#1a1a1a',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: selectedPersona.label === 'Helix' ? 'not-allowed' : 'pointer',
-              opacity: selectedPersona.label === 'Helix' ? 0.5 : 1
-            }}
-            title={selectedPersona.label === 'Helix' ? 'Default Helix persona cannot be edited' : 'Edit persona'}
-          >
-            Edit
-          </button>
+          {selectedPersona.label !== 'Helix' && (
+            <button
+              onClick={startEdit}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#00d1ff',
+                color: '#1a1a1a',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Edit
+            </button>
+          )}
         </div>
       )}
 
