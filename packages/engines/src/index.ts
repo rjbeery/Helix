@@ -18,6 +18,7 @@ export const EngineRegistry = {
   'gpt-3.5-turbo': createOpenAIEngine.gpt35Turbo,
   
   // Anthropic models
+  // Anthropic models (dated official IDs)
   'claude-3-opus-20240229': createAnthropicEngine.claude3Opus,
   'claude-3-sonnet-20240229': createAnthropicEngine.claude3Sonnet,
   'claude-3-haiku-20240307': createAnthropicEngine.claude3Haiku,
@@ -70,10 +71,10 @@ export function calculateCost(
     'gpt-4-turbo': { input: 1000, output: 3000 },
     'gpt-4o-mini': { input: 15, output: 60 },
     'gpt-3.5-turbo': { input: 50, output: 150 },
-    'claude-3-opus-20240229': { input: 1500, output: 7500 },
-    'claude-3-sonnet-20240229': { input: 300, output: 1500 },
-    'claude-3-haiku-20240307': { input: 25, output: 125 },
-    'claude-3-5-sonnet-20241022': { input: 300, output: 1500 },
+  'claude-3-opus-20240229': { input: 1500, output: 7500 },
+  'claude-3-sonnet-20240229': { input: 300, output: 1500 },
+  'claude-3-haiku-20240307': { input: 25, output: 125 },
+  'claude-3-5-sonnet-20241022': { input: 300, output: 1500 },
     'bedrock-claude-v2': { input: 800, output: 2400 },
     'bedrock-claude-3-sonnet': { input: 300, output: 1500 },
     'bedrock-titan': { input: 30, output: 40 },
