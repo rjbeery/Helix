@@ -3,23 +3,47 @@ import bcrypt from "bcryptjs";
 import pkg from "@prisma/client";
 const { PrismaClient } = pkg;
 
+/*
+Usage:
+  pnpm --filter ./apps/api exec tsx scripts/ensureUser.ts <email> <password> [--engine <engineId>]
+
+Environment fallbacks (optional):
+  USER_EMAIL / USER_PASSWORD
+  DEFAULT_ENGINE_ID (defaults to gpt-4o-mini)
+
+Creates/updates a user with role 'user' and ensures a Helix persona if no global Helix exists
+and the user doesn't already have one.
+*/
+
 (async () => {
-  const prisma: any = new PrismaClient();
+  const prisma = new PrismaClient();
   try {
-    const email = process.env.FNBO_EMAIL;
-    const pass = process.env.FNBO_PASSWORD;
-    if (!email || !pass) throw new Error("Set FNBO_EMAIL and FNBO_PASSWORD");
+    // Parse CLI args
+    const args = process.argv.slice(2);
+    let email = args[0] || process.env.USER_EMAIL;
+    let pass = args[1] || process.env.USER_PASSWORD;
+
+    const engineFlagIdx = args.indexOf("--engine");
+    const overrideEngine = engineFlagIdx !== -1 ? args[engineFlagIdx + 1] : undefined;
+
+    if (!email || !pass) {
+      console.error("Usage: tsx scripts/ensureUser.ts <email> <password> [--engine <engineId>]");
+      throw new Error("Missing email or password");
+    }
+
+    if (pass.length < 8) {
+      throw new Error("Password must be at least 8 characters");
+    }
 
     const hash = await bcrypt.hash(pass, 10);
     const user = await prisma.user.upsert({
       where: { email },
       update: { passwordHash: hash, role: "user" },
-      create: { email, passwordHash: hash, role: "user", budgetCents: 1_500 },
+      create: { email, passwordHash: hash, role: "user", budgetCents: 1500 },
     });
     console.log("User ensured:", email);
 
-    // Ensure default Helix persona for this user IF a global doesn't already exist
-    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
+    const engineId = overrideEngine || process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
     const label = "Helix";
     const specialization = "Core Intelligence";
     const systemPrompt = process.env.DEFAULT_PERSONA_PROMPT ||
@@ -28,7 +52,6 @@ const { PrismaClient } = pkg;
     const maxTokens = 2000;
     const avatarUrl = "https://helixai.live/avatars/1762720388357-0avqu.png";
 
-    // If there's a global Helix persona, don't create a per-user copy
     const globalHelix = await prisma.persona.findFirst({ where: { isGlobal: true, label } });
     const existing = await prisma.persona.findFirst({ where: { userId: user.id, label } });
     if (!existing && !globalHelix) {
@@ -47,6 +70,9 @@ const { PrismaClient } = pkg;
     } else if (globalHelix) {
       console.log("Global Helix persona exists; not creating per-user Helix for:", email);
     }
+  } catch (err: any) {
+    console.error("ensureUser error:", err.message);
+    process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }
