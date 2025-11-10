@@ -28,7 +28,7 @@ const { PrismaClient } = pkg;
         label,
         specialization,
         systemPrompt,
-        avatarUrl: "/uploads/avatars/Helix.png",
+        avatarUrl: "https://helixai.live/avatars/1762720388357-0avqu.png",
         temperature,
         maxTokens,
       },
