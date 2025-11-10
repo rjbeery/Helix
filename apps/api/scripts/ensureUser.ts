@@ -26,7 +26,7 @@ const { PrismaClient } = pkg;
       "You are Helix, the central intelligence of the Helix AI system. You coordinate reasoning, memory, and collaboration between agents. Your tone is clear, calm, and precise. Prioritize accuracy, efficiency, and clarity. When users ask questions, respond directly, explain reasoning simply, and suggest when a specialized agent might assist.";
     const temperature = 0.7;
     const maxTokens = 2000;
-    const avatarUrl = "/uploads/avatars/Helix.png";
+    const avatarUrl = "https://helixai.live/avatars/1762720388357-0avqu.png";
 
     // If there's a global Helix persona, don't create a per-user copy
     const globalHelix = await prisma.persona.findFirst({ where: { isGlobal: true, label } });

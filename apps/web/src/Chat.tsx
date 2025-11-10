@@ -404,7 +404,7 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
                     setActivePersonaIds(prev => checked ? prev.filter(id => id !== p.id) : [...prev, p.id]);
                   }}
                 />
-                <img src={p.avatarUrl} alt={p.label} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid #444' }} />
+                {p.avatarUrl && <img src={p.avatarUrl} alt={p.label} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid #444' }} />}
                 <button
                   onClick={() => {
                     setSelectedPersona(p);
@@ -473,17 +473,19 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
           backgroundColor: '#202020',
           marginBottom: '20px'
         }}>
-          <img 
-            src={selectedPersona.avatarUrl} 
-            alt={selectedPersona.label}
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '2px solid #2a3350'
-            }}
-          />
+          {selectedPersona.avatarUrl && (
+            <img 
+              src={selectedPersona.avatarUrl} 
+              alt={selectedPersona.label}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid #2a3350'
+              }}
+            />
+          )}
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: '18px', color: '#fff' }}>
               {selectedPersona.label}

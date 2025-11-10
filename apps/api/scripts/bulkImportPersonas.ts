@@ -16,7 +16,7 @@ interface PersonaInput {
 }
 
 function usage(): never {
-  console.log(`\nBulk Import Personas\n\nUsage:\n  pnpm --filter ./apps/api exec tsx scripts/bulkImportPersonas.ts <path-to-json> [--createUsers] [--updateExisting]\n\nJSON format (array of objects):\n  [\n    {\n      "email": "user@example.com",\n      "label": "Helix",\n      "engineId": "gpt-3.5-turbo",\n      "systemPrompt": "...",\n      "specialization": "Core Intelligence",\n      "temperature": 0.7,\n      "maxTokens": 2000,\n      "avatarUrl": "/uploads/avatars/Helix.png"\n    }\n  ]\n`);
+  console.log(`\nBulk Import Personas\n\nUsage:\n  pnpm --filter ./apps/api exec tsx scripts/bulkImportPersonas.ts <path-to-json> [--createUsers] [--updateExisting]\n\nJSON format (array of objects):\n  [\n    {\n      "email": "user@example.com",\n      "label": "Helix",\n      "engineId": "gpt-3.5-turbo",\n      "systemPrompt": "...",\n      "specialization": "Core Intelligence",\n      "temperature": 0.7,\n      "maxTokens": 2000,\n      "avatarUrl": "https://helixai.live/avatars/1762720388357-0avqu.png"\n    }\n  ]\n`);
   process.exit(1);
 }
 
@@ -112,7 +112,7 @@ function usage(): never {
           specialization: item.specialization ?? null,
           temperature: item.temperature ?? 0.7,
           maxTokens: item.maxTokens ?? 2000,
-          avatarUrl: item.avatarUrl ?? "/uploads/avatars/Helix.png",
+          avatarUrl: item.avatarUrl ?? "https://helixai.live/avatars/1762720388357-0avqu.png",
         }
       });
       created++;
