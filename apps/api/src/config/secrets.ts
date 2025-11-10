@@ -7,7 +7,9 @@ import { SSMClient, GetParameterCommand, GetParametersCommand } from "@aws-sdk/c
  *
  * Secrets Manager mode (SECRETS_NAME):
  * - JWT_SECRET
- * - DATABASE_URL (optional)
+ * - DATABASE_URL
+ * - OPENAI_API_KEY
+ * - ANTHROPIC_API_KEY
  * - ADMIN_EMAIL (optional)
  * - ADMIN_PASSWORD (optional)
  *
@@ -22,7 +24,12 @@ export async function initSecrets(): Promise<void> {
   const secretName = process.env.SECRETS_NAME;
   const useAwsSecrets = process.env.USE_AWS_SECRETS === 'true';
   
-  if (!secretName && !useAwsSecrets) return; // Nothing to do (local/dev)
+  console.log(`[secrets] initSecrets called - SECRETS_NAME: ${secretName}, NODE_ENV: ${process.env.NODE_ENV}`);
+  
+  if (!secretName && !useAwsSecrets) {
+    console.log('[secrets] No SECRETS_NAME or USE_AWS_SECRETS, skipping');
+    return; // Nothing to do (local/dev)
+  }
 
   // Mode 2: SSM Parameter Store
   if (useAwsSecrets) {
@@ -30,28 +37,47 @@ export async function initSecrets(): Promise<void> {
     return;
   }
 
-  // If JWT is already set, skip fetching to avoid extra cold-start cost
-  if (process.env.JWT_SECRET) return;
+  // If both JWT and DATABASE_URL are already set, skip fetching to avoid extra cold-start cost
+  if (process.env.JWT_SECRET && process.env.DATABASE_URL) {
+    console.log('[secrets] Both JWT_SECRET and DATABASE_URL already set, skipping fetch');
+    return;
+  }
 
   try {
+    console.log(`[secrets] Fetching from Secrets Manager: ${secretName}`);
     const client = new SecretsManagerClient({});
     const res = await client.send(new GetSecretValueCommand({ SecretId: secretName }));
     const raw = res.SecretString ?? (res.SecretBinary ? Buffer.from(res.SecretBinary as any).toString("utf-8") : undefined);
-    if (!raw) return;
+    if (!raw) {
+      console.error('[secrets] No secret value returned');
+      return;
+    }
     let parsed: Record<string, string> | undefined;
     try {
       parsed = JSON.parse(raw);
+      console.log(`[secrets] Parsed secret keys: ${parsed ? Object.keys(parsed).join(', ') : 'none'}`);
     } catch {
       // Allow plain-text secret containing just the JWT value
       parsed = { JWT_SECRET: raw } as Record<string, string>;
+      console.log('[secrets] Using plain-text secret as JWT_SECRET');
     }
 
     // Set env only if missing to allow overrides
     if (parsed?.JWT_SECRET && !process.env.JWT_SECRET) {
       process.env.JWT_SECRET = parsed.JWT_SECRET;
+      console.log('[secrets] Set JWT_SECRET from Secrets Manager');
     }
     if (parsed?.DATABASE_URL && !process.env.DATABASE_URL) {
       process.env.DATABASE_URL = parsed.DATABASE_URL;
+      console.log('[secrets] Set DATABASE_URL from Secrets Manager');
+    }
+    if (parsed?.OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
+      process.env.OPENAI_API_KEY = parsed.OPENAI_API_KEY;
+      console.log('[secrets] Set OPENAI_API_KEY from Secrets Manager');
+    }
+    if (parsed?.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+      process.env.ANTHROPIC_API_KEY = parsed.ANTHROPIC_API_KEY;
+      console.log('[secrets] Set ANTHROPIC_API_KEY from Secrets Manager');
     }
     if (parsed?.ADMIN_EMAIL && !process.env.ADMIN_EMAIL) {
       process.env.ADMIN_EMAIL = parsed.ADMIN_EMAIL;

@@ -112,11 +112,11 @@ export async function uploadToS3(file: Express.Multer.File): Promise<string> {
     Key: key,
     Body: file.buffer,
     ContentType: file.mimetype,
-    ACL: 'public-read'
   }));
 
-  // Return the public URL
-  return `https://${bucketName}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+  // Return the CloudFront URL
+  const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN || 'helixai.live';
+  return `https://${cloudfrontDomain}/${key}`;
 }
 
 export function getLocalAvatarUrl(filename: string): string {

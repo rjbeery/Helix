@@ -20,10 +20,19 @@ app.use(
       const ok = allowedOrigins.some((o) => o === "*" || o === origin);
       return cb(ok ? null : new Error("Not allowed by CORS"), ok);
     },
+    methods: ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
 app.use(express.json());
+
+// Request logging for debugging (only log persona routes to minimize noise)
+app.use('/api/personas', (req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}, Auth: ${req.headers.authorization ? 'present' : 'missing'}`);
+  next();
+});
+
 // Static file serving for local avatar uploads (dev only)
 if (process.env.NODE_ENV !== 'production') {
   app.use('/uploads', express.static('uploads'));
