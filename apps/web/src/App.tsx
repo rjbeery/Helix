@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import HelixLogoTagline from "./public/images/Helix_logo_with_tagline.svg";
 import Chat from "./Chat";
+import { DocumentUpload } from "./components/DocumentUpload";
 
 type VerifyResponse = { ok: true; user: { sub: string; email: string; role: "admin" | "user"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } };
 type LoginResponse = { token: string };
@@ -14,6 +15,7 @@ export default function App() {
   const [status, setStatus] = useState<string>("");
   const [user, setUser] = useState<{ sub: string; email: string; role: "admin" | "user"; budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
   const [editedBudget, setEditedBudget] = useState<string>("0.00");
   const [editedMaxPerQuestion, setEditedMaxPerQuestion] = useState<string>("0.00");
   const [editedMaxBatonPasses, setEditedMaxBatonPasses] = useState(0);
@@ -242,6 +244,23 @@ export default function App() {
                 onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#2563eb")}
               >
                 Settings
+              </button>
+              <button
+                onClick={() => setShowDocuments(true)}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#059669",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#047857")}
+                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#059669")}
+              >
+                📄 Documents
               </button>
               <button
                 onClick={logout}
@@ -506,6 +525,72 @@ export default function App() {
                   }}
                 >
                   Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Documents Modal */}
+        {showDocuments && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: "#1a1a1a",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "800px",
+              width: "90%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 4px 24px rgba(0, 0, 0, 0.5)"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h2 style={{ margin: 0, fontSize: "24px" }}>Document Management</h2>
+                <button
+                  onClick={() => setShowDocuments(false)}
+                  style={{
+                    padding: "8px 12px",
+                    backgroundColor: "#333",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "18px",
+                    cursor: "pointer"
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <DocumentUpload onUploadSuccess={() => {
+                // Optionally refresh document list here when that endpoint exists
+              }} />
+
+              <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowDocuments(false)}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Close
                 </button>
               </div>
             </div>
