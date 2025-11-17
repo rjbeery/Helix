@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-// @ts-ignore - pdf-parse has ESM issues with TypeScript
-import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
+
+// Use require for pdf-parse due to ESM/CJS compatibility issues
+const pdfParse = require('pdf-parse');
 
 /**
  * Extract text content from various file formats
