@@ -48,6 +48,9 @@ importers:
       '@prisma/client':
         specifier: ^6.17.1
         version: 6.17.1(prisma@6.17.1(typescript@5.9.3))(typescript@5.9.3)
+      '@types/pg':
+        specifier: ^8.15.6
+        version: 8.15.6
       bcrypt:
         specifier: ^6.0.0
         version: 6.0.0
@@ -63,6 +66,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
+      pg:
+        specifier: ^8.16.3
+        version: 8.16.3
       serverless-http:
         specifier: ^4.0.0
         version: 4.0.0
