@@ -13,6 +13,9 @@
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.671.0",
     "@aws-sdk/client-ssm": "^3.922.0",
+    "@helix/core": "workspace:*",
+    "@helix/engines": "workspace:*",
+    "@helix/memory": "workspace:*",
     "@helix/utils": "workspace:*",
     "@prisma/client": "^6.17.1",
     "bcrypt": "^6.0.0",
