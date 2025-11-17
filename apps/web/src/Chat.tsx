@@ -54,6 +54,7 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
   const [newEngineId, setNewEngineId] = useState('');
   const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
   const [multiAgentMode, setMultiAgentMode] = useState<'panel' | 'baton'>('panel');
+  const [vectorizingIndex, setVectorizingIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -269,6 +270,48 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
     } catch (error) {
       console.error('Failed to update persona:', error);
       alert('Failed to update persona');
+    }
+  }
+
+  async function vectorizeMessage(messageIndex: number, content: string, personaLabel?: string) {
+    setVectorizingIndex(messageIndex);
+    
+    try {
+      const documentId = `chat-response-${Date.now()}`;
+      const metadata = {
+        source: 'chat',
+        persona: personaLabel || 'assistant',
+        timestamp: new Date().toISOString(),
+        messageIndex
+      };
+
+      const response = await fetch(`${apiBase}/v1/rag/ingest`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          documentId,
+          content,
+          metadata,
+          chunkSize: 1000,
+          overlap: 200
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Vectorization failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      alert(`✅ Vectorized successfully!\n${result.chunksCreated} chunks created as "${documentId}"`);
+      
+    } catch (error: any) {
+      console.error('Vectorization failed:', error);
+      alert(`❌ Vectorization failed: ${error.message}`);
+    } finally {
+      setVectorizingIndex(null);
     }
   }
 
@@ -1007,6 +1050,37 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
             <div style={{ fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
               {msg.content}
             </div>
+            {msg.role === 'assistant' && (
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => vectorizeMessage(i, msg.content, p?.label)}
+                  disabled={vectorizingIndex === i}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '11px',
+                    backgroundColor: vectorizingIndex === i ? '#555' : '#2563eb',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: vectorizingIndex === i ? 'not-allowed' : 'pointer',
+                    opacity: vectorizingIndex === i ? 0.6 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    if (vectorizingIndex !== i) {
+                      e.currentTarget.style.backgroundColor = '#1d4ed8';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (vectorizingIndex !== i) {
+                      e.currentTarget.style.backgroundColor = '#2563eb';
+                    }
+                  }}
+                >
+                  {vectorizingIndex === i ? '⏳ Vectorizing...' : '📚 Vectorize Answer'}
+                </button>
+              </div>
+            )}
           </div>
         );})}
         {loading && (
