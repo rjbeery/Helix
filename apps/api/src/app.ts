@@ -4,6 +4,7 @@ import auth from "./routes/auth.js";
 import personas from "./routes/personas.js";
 import chat from "./routes/chat.js";
 import users from "./routes/users.js";
+import rag from "./routes/rag.js";
 import { requireAuth, type AuthedRequest } from "./middleware/requireAuth.js";
 import { initSecrets } from "./config/secrets.js";
 import dbRouter from "./routes/db.js";
@@ -49,6 +50,8 @@ app.use("/api/personas", requireAuth, personas);
 app.use("/api/chat", requireAuth, chat);
 // users routes (protected)
 app.use("/api/users", requireAuth, users);
+// RAG routes (protected)
+app.use("/v1/rag", requireAuth, rag);
 // simple protected probe
 app.get("/v1/me", requireAuth, (req, res) => {
   const u = (req as AuthedRequest).user!;

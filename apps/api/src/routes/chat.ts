@@ -1,13 +1,46 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, type Router as RouterType } from 'express';
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 import { createEngine, calculateCost } from '@helix/engines';
 import type { Message } from '@helix/core';
 import { RubricScores, scoreOf, DELTA_GAIN } from '@helix/utils';
+import { createVectorStore } from '@helix/memory';
 
-const router = Router();
-let prisma: PrismaClient | null = null;
-const db = () => (prisma ??= new PrismaClient());
+const router: RouterType = Router();
+let prisma: InstanceType<typeof PrismaClient> | null = null;
+const db = (): InstanceType<typeof PrismaClient> => (prisma ??= new PrismaClient());
+
+// Lazy-load vector store for RAG
+let vectorStore: ReturnType<typeof createVectorStore> | null = null;
+function getVectorStore() {
+  if (!vectorStore) {
+    // Detect which backend to use from environment
+    const storeType = (process.env.VECTOR_STORE_TYPE || 'pinecone') as 'pinecone' | 'postgres';
+    
+    // Only initialize if appropriate credentials are available
+    const hasPinecone = process.env.PINECONE_API_KEY;
+    const hasPostgres = process.env.DATABASE_URL;
+    
+    if ((storeType === 'pinecone' && !hasPinecone) || (storeType === 'postgres' && !hasPostgres)) {
+      return null;
+    }
+    
+    vectorStore = createVectorStore({
+      storeType,
+      // Pinecone config
+      pineconeApiKey: process.env.PINECONE_API_KEY,
+      pineconeIndexName: process.env.PINECONE_INDEX_NAME || 'helix-knowledge',
+      pineconeNamespace: process.env.PINECONE_NAMESPACE || 'default',
+      // Postgres config
+      postgresConnectionString: process.env.DATABASE_URL,
+      postgresTableName: 'embeddings',
+      // Common config
+      openaiApiKey: process.env.OPENAI_API_KEY,
+      embeddingModel: 'text-embedding-3-small',
+    });
+  }
+  return vectorStore;
+}
 
 type UserBudget = { budgetCents: number; maxBudgetPerQuestion: number };
 type UserLimits = { budgetCents: number; maxBudgetPerQuestion: number; maxBatonPasses: number; truthinessThreshold: number };
@@ -95,6 +128,9 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing personaId or message' });
     }
 
+    // Optional RAG flag (default false for backward compatibility)
+    const useRag = req.body.useRag === true;
+
     // Load persona (allow admin any; user may use own or global)
   const persona = await db().persona.findFirst({
       where: isAdmin ? { id: personaId } : { id: personaId, OR: [{ userId }, { isGlobal: true }] },
@@ -147,6 +183,31 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     messages.push({ role: 'user', content: message });
+
+    // Retrieve RAG context if enabled
+    let ragContext: string | undefined;
+    if (useRag) {
+      try {
+        const store = getVectorStore();
+        if (store) {
+          const results = await store.query(message, 3, { userId });
+          if (results.length > 0) {
+            ragContext = results.map((r, i) => `[${i + 1}] ${r.content}`).join('\n\n');
+          }
+        }
+      } catch (ragError) {
+        console.warn('RAG retrieval failed, continuing without context:', ragError);
+      }
+    }
+
+    // Inject RAG context into the last user message if available
+    if (ragContext) {
+      const lastIdx = messages.length - 1;
+      messages[lastIdx] = {
+        role: 'user',
+        content: `Context from knowledge base:\n${ragContext}\n\nUser question: ${message}`
+      };
+    }
 
     // Get API key
     const provider = persona.engine.provider.toUpperCase();
@@ -234,7 +295,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     }
 
     // Check budget
-    const userLimits = await prisma.user.findUnique({
+    const userLimits = await db().user.findUnique({
       where: { id: userId },
       select: { 
         budgetCents: true, 
@@ -256,7 +317,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     }
 
     // Load all personas (allow own or global for users)
-    const personas = await prisma.persona.findMany({
+    const personas = await db().persona.findMany({
       where: isAdmin ? { id: { in: personaIds } } : { id: { in: personaIds }, OR: [{ userId }, { isGlobal: true }] },
       include: { engine: true }
     });
@@ -266,7 +327,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     }
 
     // Sort personas by the order in personaIds
-    const sortedPersonas = personaIds.map(id => personas.find(p => p.id === id)!);
+    const sortedPersonas = personaIds.map((id) => personas.find((p: any) => p.id === id)!);
 
     const batonChain: Array<{
       personaId: string;
@@ -287,14 +348,14 @@ router.post('/baton', async (req: Request, res: Response) => {
       // Get or create conversation
       let conversation;
       if (convId) {
-        conversation = await prisma.conversation.findFirst({
+        conversation = await db().conversation.findFirst({
           where: { id: convId, personaId: persona.id },
           include: { messages: { orderBy: { createdAt: 'asc' }, take: 20 } }
         });
       }
 
       if (!conversation) {
-        conversation = await prisma.conversation.create({
+        conversation = await db().conversation.create({
           data: { personaId: persona.id },
           include: { messages: true }
         });
@@ -364,7 +425,7 @@ router.post('/baton', async (req: Request, res: Response) => {
       }
 
       // Save messages
-      await prisma.message.create({
+      await db().message.create({
         data: {
           conversationId: conversation.id,
           role: 'user',
@@ -373,7 +434,7 @@ router.post('/baton', async (req: Request, res: Response) => {
         }
       });
 
-      await prisma.message.create({
+      await db().message.create({
         data: {
           conversationId: conversation.id,
           role: 'assistant',
@@ -429,7 +490,7 @@ router.post('/baton', async (req: Request, res: Response) => {
     }
 
     // Deduct total budget
-    await prisma.user.update({
+    await db().user.update({
       where: { id: userId },
       data: { budgetCents: { decrement: totalCostCents } }
     });
