@@ -39,8 +39,8 @@ export class OpenAIEmbedder implements Embedder {
       throw new Error(`OpenAI embedding failed: ${error}`);
     }
 
-    const data = await response.json();
-    return data.data.map((item: any) => item.embedding);
+    const data = await response.json() as { data: Array<{ embedding: number[] }> };
+    return data.data.map((item) => item.embedding);
   }
 
   async embedSingle(text: string): Promise<number[]> {
