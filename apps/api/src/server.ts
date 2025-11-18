@@ -8,7 +8,7 @@ async function bootstrap() {
   let serverApp: import('express').Express;
   try {
     // Dynamically import the real app; this lets us catch boot-time errors (e.g., Prisma/env issues)
-    const mod = await import("./app");
+    const mod = await import("./app.js");
     serverApp = (mod as any).app as import('express').Express;
   } catch (err: any) {
     console.error("[bootstrap] Failed to load app:", err?.stack || err);

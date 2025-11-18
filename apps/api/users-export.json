@@ -1,0 +1,13 @@
+[
+  {
+    "id": "cmhca44dr0000n3ogxvmhtec4",
+    "email": "rjbeery@gmail.com",
+    "passwordHash": "$2b$10$/wmiVaTsChd0MPljCGiTo.daw52/znSoHbDwTJZpVb2FkReWaQLEa",
+    "role": "user",
+    "budgetCents": 10000,
+    "maxBudgetPerQuestion": 100,
+    "maxBatonPasses": 5,
+    "truthinessThreshold": 0.7,
+    "createdAt": "2025-10-29T17:38:12.397Z"
+  }
+]

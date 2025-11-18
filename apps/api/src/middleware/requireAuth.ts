@@ -9,8 +9,19 @@ export interface AuthedRequest extends Request {
 }
 
 export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
-  const [scheme, token] = (req.headers.authorization ?? "").split(" ");
+  const headerCandidate = (req.headers.authorization
+    ?? (req.headers as any)["Authorization"]
+    ?? (req.headers as any)["x-authorization"]
+    ?? (req.headers as any)["X-Authorization"]
+    ?? "") as string;
+
+  const queryToken = typeof req.query.token === "string" ? req.query.token : undefined;
+  const cookieToken = typeof (req as any).cookies?.token === "string" ? (req as any).cookies.token : undefined;
+
+  const effective = headerCandidate || (queryToken ? `Bearer ${queryToken}` : "") || (cookieToken ? `Bearer ${cookieToken}` : "");
+  const [scheme, token] = effective.split(" ");
   if (scheme !== "Bearer" || !token) {
+    console.warn("[auth] Missing bearer token. Received headers keys:", Object.keys(req.headers));
     return res.status(401).json({ error: "Missing bearer token" });
   }
 

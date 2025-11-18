@@ -4,7 +4,7 @@ import type {
   CompletionRequest,
   CompletionResponse,
   Message,
-} from '@helix/core';
+} from '../../core/src/types';
 
 interface AnthropicMessage {
   role: 'user' | 'assistant';
@@ -115,11 +115,11 @@ export class AnthropicEngine implements Engine {
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-          throw new Error(`Anthropic API error: ${error.error?.message || response.statusText}`);
+          const apiErr: any = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+          throw new Error(`Anthropic API error: ${apiErr.error?.message || response.statusText}`);
         }
 
-        const data: AnthropicCompletionResponse = await response.json();
+        const data = await response.json() as AnthropicCompletionResponse;
         
         // Extract text content
         const textContent = data.content
@@ -169,8 +169,7 @@ export class AnthropicEngine implements Engine {
 
 // Factory function for common models
 export const createAnthropicEngine = {
-  claude3Opus: (config?: EngineConfig) => new AnthropicEngine('claude-3-opus-20240229', config),
-  claude3Sonnet: (config?: EngineConfig) => new AnthropicEngine('claude-3-sonnet-20240229', config),
-  claude3Haiku: (config?: EngineConfig) => new AnthropicEngine('claude-3-haiku-20240307', config),
-  claude35Sonnet: (config?: EngineConfig) => new AnthropicEngine('claude-3-5-sonnet-20241022', config),
+  claude4Opus: (config?: EngineConfig) => new AnthropicEngine('claude-4-opus-20250514', config),
+  claude4Sonnet: (config?: EngineConfig) => new AnthropicEngine('claude-4-sonnet-20250514', config),
+  claude4Haiku: (config?: EngineConfig) => new AnthropicEngine('claude-4-haiku-20250514', config),
 };

@@ -1,9 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Router as RouterType, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
-const router = Router();
+const router: RouterType = Router();
 let prisma: PrismaClient | null = null;
-const db = () => (prisma ??= new PrismaClient());
+const db = (): InstanceType<typeof PrismaClient> => (prisma ??= new PrismaClient());
 const MAX_PER_Q_CENTS = parseInt(process.env.MAX_PER_Q_CENTS || '500', 10); // hard cap safeguard
 
 interface AuthedRequest extends Request {

@@ -1,0 +1,25 @@
+RAG Test Document
+
+This is a test document for the Helix RAG system.
+
+Key features of the Helix RAG implementation:
+- Uses PostgreSQL with pgvector extension for vector storage
+- Supports multiple document formats: PDF, DOCX, TXT, MD, TEX, JSON, CSV
+- Implements semantic search using OpenAI embeddings (vector dimension 1536)
+- HNSW indexing for fast approximate nearest neighbor search
+- Chunks documents with configurable size (default 1000 chars) and overlap (default 200 chars)
+- Metadata filtering using GIN indexes on JSONB columns
+- Multi-file drag & drop upload interface in web UI
+- PowerShell scripts for batch document ingestion
+
+Cost savings:
+- PostgreSQL pgvector is free compared to Pinecone's paid tiers
+- Running on AWS RDS db.t3.micro instance
+- No additional vector database subscription fees
+
+Technical stack:
+- Backend: FastAPI with JWT authentication
+- Frontend: React with Vite
+- Database: PostgreSQL 16.10 on AWS RDS
+- Vector similarity: Cosine distance using vector_cosine_ops
+- Embeddings: OpenAI text-embedding-ada-002 model
