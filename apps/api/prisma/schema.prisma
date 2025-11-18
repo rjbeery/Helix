@@ -9,17 +9,16 @@ datasource db {
 }
 
 model User {
-  id                    String    @id @default(uuid())
-  email                 String    @unique
-  passwordHash          String
-  role                  String    @default("user") // "admin" | "user"
-  budgetCents           Int       @default(1500)
-  maxBudgetPerQuestion  Int       @default(100) // cents, ~$1 per question max
-  maxBatonPasses        Int       @default(5)    // max personas in baton chain
-  truthinessThreshold   Float     @default(0.70) // min score to accept answer (0..1)
-  createdAt             DateTime  @default(now())
-  
-  personas              Persona[]
+  budgetCents          Int       @default(1500)
+  createdAt            DateTime  @default(now())
+  email                String    @unique
+  id                   String    @id @default(uuid())
+  passwordHash         String
+  role                 String    @default("user")
+  maxBudgetPerQuestion Int       @default(100)
+  maxBatonPasses       Int       @default(5)
+  truthinessThreshold  Float     @default(0.70)
+  personas             Persona[]
 }
 
 model Engine {
@@ -30,40 +29,36 @@ model Engine {
   costPer1MInput  Int
   costPer1MOutput Int
   createdAt       DateTime  @default(now())
-  
   personas        Persona[]
 }
 
 model Persona {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   userId         String?
   engineId       String
   label          String
-  specialization String?
-  systemPrompt   String   @db.Text
+  systemPrompt   String
   avatarUrl      String?
-  temperature    Float?   @default(0.7)
-  maxTokens      Int?     @default(2000)
-  toolWhitelist  String[] @default([])
-  isGlobal       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  engine         Engine   @relation(fields: [engineId], references: [id])
+  temperature    Float?         @default(0.7)
+  maxTokens      Int?           @default(2000)
+  toolWhitelist  String[]       @default([])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  specialization String?
+  isGlobal       Boolean        @default(false)
   conversations  Conversation[]
+  engine         Engine         @relation(fields: [engineId], references: [id])
+  user           User?          @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([engineId])
   @@index([isGlobal])
 }
 
-
 model Conversation {
   id        String    @id @default(uuid())
-  personaId String
   createdAt DateTime  @default(now())
-
+  personaId String
   persona   Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
   messages  Message[]
 
@@ -71,15 +66,14 @@ model Conversation {
 }
 
 model Message {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   conversationId String
   role           String
-  content        String   @db.Text
-  costCents      Int      @default(0)
-  createdAt      DateTime @default(now())
-  
+  content        String
+  costCents      Int          @default(0)
+  createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
+
   @@index([conversationId])
 }
 

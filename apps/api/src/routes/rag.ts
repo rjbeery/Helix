@@ -28,19 +28,26 @@ let vectorStore: ReturnType<typeof createVectorStore> | null = null;
 
 function getVectorStore() {
   if (!vectorStore) {
-    // Detect which backend to use from environment
-    const storeType = (process.env.VECTOR_STORE_TYPE || 'pinecone') as 'pinecone' | 'postgres';
-    
+    // If explicit type provided use it; else prefer postgres when Pinecone key absent
+    const explicit = process.env.VECTOR_STORE_TYPE as 'pinecone' | 'postgres' | undefined;
+    const pineconeKey = process.env.PINECONE_API_KEY;
+    const chosen: 'pinecone' | 'postgres' = explicit ? explicit : (pineconeKey ? 'pinecone' : 'postgres');
+
+    if (chosen === 'pinecone' && !pineconeKey) {
+      console.warn('[rag] Pinecone store selected but PINECONE_API_KEY missing; falling back to postgres');
+    }
+
+    const finalStoreType: 'pinecone' | 'postgres' = (chosen === 'pinecone' && pineconeKey) ? 'pinecone' : 'postgres';
+
+    console.log('[rag] Initializing vector store with type:', finalStoreType);
+
     vectorStore = createVectorStore({
-      storeType,
-      // Pinecone config
-      pineconeApiKey: process.env.PINECONE_API_KEY,
+      storeType: finalStoreType,
+      pineconeApiKey: pineconeKey,
       pineconeIndexName: process.env.PINECONE_INDEX_NAME || 'helix-knowledge',
       pineconeNamespace: process.env.PINECONE_NAMESPACE || 'default',
-      // Postgres config (will use DATABASE_URL if available)
       postgresConnectionString: process.env.DATABASE_URL,
       postgresTableName: 'embeddings',
-      // Common config
       openaiApiKey: process.env.OPENAI_API_KEY,
       embeddingModel: 'text-embedding-3-small',
     });

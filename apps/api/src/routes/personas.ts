@@ -1,11 +1,11 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Router as RouterType, Request, Response } from 'express';
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 import { upload, uploadToS3, getLocalAvatarUrl, validateImageFile } from '../config/upload.js';
 
-const router = Router();
-let prisma: PrismaClient | null = null;
-const db = () => (prisma ??= new PrismaClient());
+const router: RouterType = Router();
+let prisma: InstanceType<typeof pkg.PrismaClient> | null = null;
+const db = (): InstanceType<typeof pkg.PrismaClient> => (prisma ??= new PrismaClient());
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Extend Express Request

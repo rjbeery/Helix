@@ -27,11 +27,44 @@ export class PostgresVectorStore implements VectorStore {
     const connectionString = config.connectionString || 
       `postgresql://${config.user}:${config.password}@${config.host}:${config.port || 5432}/${config.database}`;
 
+    // Enable SSL for managed Postgres (e.g., RDS) when requested
+    const wantsSSL =
+      /sslmode=require/i.test(connectionString || '') ||
+      String(process.env.PGSSLMODE || '').toLowerCase() === 'require' ||
+      String(process.env.DATABASE_SSL || '').toLowerCase() === 'true';
+
+    let hostIsRds = false;
+    let hostname = '';
+    try {
+      const u = new URL(connectionString);
+      hostname = u.hostname;
+      hostIsRds = /\.rds\.amazonaws\.com$/i.test(u.hostname);
+    } catch {}
+
+    const forceNoVerify = String(process.env.FORCE_PG_SSL_NO_VERIFY || '').toLowerCase() === 'true';
+    const useSSLNoVerify = forceNoVerify || wantsSSL || hostIsRds;
+
+    const sslConfig = useSSLNoVerify ? { ssl: { rejectUnauthorized: false } } : {};
+
+    console.log('[pg] initializing pool', {
+      host: hostname,
+      useSSLNoVerify,
+      sslConfig,
+      flags: {
+        hasSslmodeRequire: /sslmode=require/i.test(connectionString || ''),
+        PGSSLMODE: process.env.PGSSLMODE,
+        DATABASE_SSL: process.env.DATABASE_SSL,
+        FORCE_PG_SSL_NO_VERIFY: process.env.FORCE_PG_SSL_NO_VERIFY,
+      }
+    });
+
     this.pool = new Pool({
       connectionString,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
+      // For RDS without CA bundle, do not reject self-signed certs
+      ...sslConfig,
     });
 
     this.embedder = config.embedder;

@@ -5,7 +5,7 @@ import type {
   CompletionResponse,
   Message,
   ToolCall
-} from '@helix/core';
+} from '../../core/src/types';
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -100,11 +100,11 @@ export class OpenAIEngine implements Engine {
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-          throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`);
+          const apiErr: any = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+          throw new Error(`OpenAI API error: ${apiErr.error?.message || response.statusText}`);
         }
 
-        const data: OpenAICompletionResponse = await response.json();
+        const data = await response.json() as OpenAICompletionResponse;
         const choice = data.choices[0];
 
         return {

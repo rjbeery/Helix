@@ -2,13 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import mammoth from 'mammoth';
 
-// Use require for pdf-parse due to ESM/CJS compatibility issues
-const pdfParse = require('pdf-parse');
-
 /**
  * Extract text content from various file formats
  */
 export class DocumentParser {
+  constructor() {}
   /**
    * Parse a file and extract text content
    */
@@ -25,7 +23,7 @@ export class DocumentParser {
         return this.parseTextFile(filePath);
       
       case '.pdf':
-        return this.parsePDF(filePath);
+        throw new Error('PDF parsing temporarily disabled');
       
       case '.docx':
         return this.parseDOCX(filePath);
@@ -42,14 +40,7 @@ export class DocumentParser {
     return fs.promises.readFile(filePath, 'utf-8');
   }
 
-  /**
-   * Parse PDF files
-   */
-  private async parsePDF(filePath: string): Promise<string> {
-    const dataBuffer = await fs.promises.readFile(filePath);
-    const data = await pdfParse(dataBuffer);
-    return data.text;
-  }
+  // PDF parsing removed
 
   /**
    * Parse DOCX files
@@ -74,8 +65,7 @@ export class DocumentParser {
         return buffer.toString('utf-8');
       
       case '.pdf':
-        const data = await pdfParse(buffer);
-        return data.text;
+        throw new Error('PDF parsing temporarily disabled');
       
       case '.docx':
         const result = await mammoth.extractRawText({ buffer });

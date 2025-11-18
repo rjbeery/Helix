@@ -3,7 +3,7 @@ import type {
   EngineConfig,
   CompletionRequest,
   CompletionResponse,
-} from '@helix/core';
+} from '../../core/src/types';
 
 /**
  * AWS Bedrock Engine stub
