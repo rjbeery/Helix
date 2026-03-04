@@ -5,6 +5,10 @@
 #   ./scripts/add-user.ps1 -Email "new.user@example.com" -Password "TempPassword123!"
 #   ./scripts/add-user.ps1 -Email "admin.user@example.com" -Password "StrongPass!234" -Role admin
 #   ./scripts/add-user.ps1 -Email "user@example.com" -Password "P@ssw0rd!" -DatabaseUrl "<your connection string here>"
+#
+# For production: Run setup-prod-env.ps1 once, then add-user.ps1 will auto-use prod DATABASE_URL from .env:
+#   ./scripts/setup-prod-env.ps1
+#   ./scripts/add-user.ps1 -Email "prod.user@example.com" -Password "SecurePass123!" -Role admin
 
 [CmdletBinding()]
 Param(
@@ -19,6 +23,20 @@ Param(
 
   [string]$DatabaseUrl
 )
+
+# Load .env file if it exists (production credentials are stored here after setup-prod-env.ps1)
+$envFile = Join-Path (Split-Path $PSScriptRoot) '.env'
+if (Test-Path $envFile) {
+  Get-Content $envFile | ForEach-Object {
+    if ($_ -match '^\s*([^=]+)=(.*)$') {
+      $name = $matches[1].Trim()
+      $value = $matches[2].Trim()
+      if ($name -eq 'DATABASE_URL' -and -not $DatabaseUrl) {
+        $DatabaseUrl = $value
+      }
+    }
+  }
+}
 
 function Set-EnvVarSafely {
   param(
@@ -55,12 +73,12 @@ try {
   $sep = '://'
     $user = 'helix'
     $pwd  = 'helix'
-    $host = 'localhost'
+    $dbhost = 'localhost'
     $port = '5432'
     $db   = 'helix'
     $schema = 'public'
   $protoFull = $proto + $proto2
-  $defaultUrl = $protoFull + $sep + $user + ':' + $pwd + '@' + $host + ':' + $port + '/' + $db + '?schema=' + $schema
+  $defaultUrl = $protoFull + $sep + $user + ':' + $pwd + '@' + $dbhost + ':' + $port + '/' + $db + '?schema=' + $schema
     Set-EnvVarSafely -Name 'DATABASE_URL' -Value $defaultUrl
   }
 

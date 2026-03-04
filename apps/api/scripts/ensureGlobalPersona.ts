@@ -5,7 +5,7 @@ const { PrismaClient } = pkg;
 (async () => {
   const prisma: any = new PrismaClient();
   try {
-    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-4o-mini";
+    const engineId = process.env.DEFAULT_ENGINE_ID || "gpt-5";
     const label = process.env.GLOBAL_PERSONA_LABEL || "Helix";
     const specialization = process.env.GLOBAL_PERSONA_SPECIALIZATION || "Core Intelligence";
     const systemPrompt = process.env.GLOBAL_PERSONA_PROMPT ||
@@ -30,7 +30,6 @@ const { PrismaClient } = pkg;
       const created = await prisma.persona.create({
         data: {
           isGlobal: true,
-          userId: null,
           engineId,
           label,
           specialization,
