@@ -211,4 +211,33 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /api/personas/:id - Delete persona
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthedRequest).user?.sub;
+    const userRole = (req as AuthedRequest).user?.role;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+
+    // Verify ownership or admin; block non-admin deletes on global personas
+    const existing = await db().persona.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Persona not found' });
+    if (existing.isGlobal && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Cannot delete global persona' });
+    }
+    if (!existing.isGlobal && existing.userId !== userId && userRole !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Delete the persona
+    await db().persona.delete({ where: { id } });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting persona:', error);
+    return res.status(500).json({ error: 'Failed to delete persona' });
+  }
+});
+
 export default router;

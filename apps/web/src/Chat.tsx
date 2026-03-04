@@ -114,6 +114,35 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
     setNewAvatarFile(null);
   }
 
+  async function deletePersona(personaId: string) {
+    if (!confirm('Are you sure you want to delete this persona?')) return;
+    
+    try {
+      const res = await fetch(`${apiBase}/api/personas/${personaId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        }
+      });
+
+      if (!res.ok) throw new Error('Failed to delete persona');
+      
+      // Remove from list
+      setPersonas(prev => prev.filter(p => p.id !== personaId));
+      
+      // If it was selected, clear selection
+      if (selectedPersona?.id === personaId) {
+        setSelectedPersona(null);
+      }
+      
+      // Remove from active personas
+      setActivePersonaIds(prev => prev.filter(id => id !== personaId));
+    } catch (error) {
+      console.error('Failed to delete persona:', error);
+      alert('Failed to delete persona');
+    }
+  }
+
   async function saveCreate() {
     if (!newLabel || !newPrompt || !newEngineId) {
       alert('Please fill in all required fields (Name, Prompt, Engine)');
@@ -465,6 +494,24 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
                 >
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{p.label}</div>
                   <div style={{ fontSize: 11, color: '#a0a0a0' }}>{p.engine.displayName}</div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deletePersona(p.id);
+                  }}
+                  title="Delete persona"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ff6b6b',
+                    cursor: 'pointer',
+                    padding: '4px 8px',
+                    fontSize: '16px',
+                    lineHeight: '1'
+                  }}
+                >
+                  ✕
                 </button>
               </div>
             );
