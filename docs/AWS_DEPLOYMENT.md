@@ -83,7 +83,9 @@ aws lambda update-function-configuration `
     NODE_ENV=production,
     USE_AWS_SECRETS=true,
     PARAMETER_PREFIX=/helix/prod,
-    S3_AVATAR_BUCKET=helixai-avatars,
+    S3_AVATAR_BUCKET=helixai-site-helixai-live,
+    S3_AVATAR_PUBLIC_BASE_URL=https://helixai.live,
+    CLOUDFRONT_DOMAIN=helixai.live,
     AWS_REGION=us-east-1,
     ALLOWED_ORIGINS=https://helixai.live
   }"
@@ -161,6 +163,8 @@ This will:
 | `USE_AWS_SECRETS` | Enable Parameter Store loading | Terraform |
 | `PARAMETER_PREFIX` | Parameter Store path prefix | Terraform |
 | `S3_AVATAR_BUCKET` | Avatar storage bucket | Terraform |
+| `S3_AVATAR_PUBLIC_BASE_URL` | Public base URL used to build avatar URLs (e.g. `https://helixai.live`) | Lambda env |
+| `CLOUDFRONT_DOMAIN` | Fallback domain used when `S3_AVATAR_PUBLIC_BASE_URL` is not set | Lambda env |
 | `AWS_REGION` | AWS region | Terraform |
 | `ALLOWED_ORIGINS` | CORS allowed origins | Terraform |
 | `SECRETS_NAME` | Secrets Manager secret name | Terraform |
@@ -221,9 +225,9 @@ aws lambda get-function-configuration --function-name helixai-api --query 'Envir
 
 ### Avatar Upload Failures
 
-1. Check S3 bucket exists: `aws s3 ls s3://helixai-avatars`
+1. Check S3 bucket exists: `aws s3 ls s3://helixai-site-helixai-live`
 2. Verify Lambda has S3 write permissions (check IAM role)
-3. Check `S3_AVATAR_BUCKET` environment variable in Lambda
+3. Check `S3_AVATAR_BUCKET`, `S3_AVATAR_PUBLIC_BASE_URL`, and `CLOUDFRONT_DOMAIN` in Lambda
 
 ### Database Connection Issues
 

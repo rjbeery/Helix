@@ -136,7 +136,7 @@ aws ssm put-parameter --name /helix/prod/NEW_API_KEY --value "key-value" --type 
 | Lambda errors | `aws logs tail /aws/lambda/helixai-api --follow` |
 | Check Lambda config | `aws lambda get-function-configuration --function-name helixai-api` |
 | Test database connection | `psql $DATABASE_URL` |
-| Check S3 bucket | `aws s3 ls s3://helixai-avatars` |
+| Check S3 bucket | `aws s3 ls s3://helixai-site-helixai-live` |
 | Invalidate CloudFront | `aws cloudfront create-invalidation --distribution-id DIST_ID --paths "/*"` |
 
 ## Cost Estimates

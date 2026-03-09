@@ -42,7 +42,7 @@ export interface CompletionResponse {
 export interface Engine {
   id: string;
   model: string;
-  provider: 'openai' | 'anthropic' | 'bedrock';
+  provider: 'openai' | 'anthropic' | 'bedrock' | 'gemini' | 'grok';
   
   complete(request: CompletionRequest): Promise<CompletionResponse>;
 }

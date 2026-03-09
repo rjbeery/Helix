@@ -7,9 +7,15 @@ import users from "./routes/users.js";
 import rag from "./routes/rag.js";
 import { requireAuth, type AuthedRequest } from "./middleware/requireAuth.js";
 import { initSecrets } from "./config/secrets.js";
+import { getAvatarConfigWarnings } from "./config/upload.js";
 import dbRouter from "./routes/db.js";
 // Initialize secrets at cold start (no-op locally)
 await initSecrets();
+
+for (const warning of getAvatarConfigWarnings()) {
+  console.warn(`[avatar-config] ${warning}`);
+}
+
 export const app: Express = express();
 // CORS: allow local dev and production site by default; override via ALLOWED_ORIGINS (comma-separated)
 const defaultOrigins = ["http://localhost:5173", "https://helixai.live"];

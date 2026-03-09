@@ -114,15 +114,57 @@ export async function uploadToS3(file: Express.Multer.File): Promise<string> {
     ContentType: file.mimetype,
   }));
 
-  // Return the CloudFront URL
-  const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN || 'helixai.live';
-  return `https://${cloudfrontDomain}/${key}`;
+  // Return a public URL for the uploaded object.
+  // Prefer explicit base URL when bucket and CDN origin do not share a simple domain mapping.
+  const explicitBase = process.env.S3_AVATAR_PUBLIC_BASE_URL?.trim();
+  if (explicitBase) {
+    return `${explicitBase.replace(/\/+$/, '')}/${key}`;
+  }
+
+  const cloudfrontDomain = (process.env.CLOUDFRONT_DOMAIN || 'helixai.live').trim();
+  const cloudfrontBase = cloudfrontDomain.startsWith('http://') || cloudfrontDomain.startsWith('https://')
+    ? cloudfrontDomain
+    : `https://${cloudfrontDomain}`;
+  return `${cloudfrontBase.replace(/\/+$/, '')}/${key}`;
 }
 
 export function getLocalAvatarUrl(filename: string): string {
   // In production, this won't be used
   // In development, return path relative to web app's public directory
   return `/images/${filename}`;
+}
+
+export function getAvatarConfigWarnings(): string[] {
+  const warnings: string[] = [];
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!isProduction) return warnings;
+
+  const bucket = process.env.S3_AVATAR_BUCKET?.trim();
+  const explicitBase = process.env.S3_AVATAR_PUBLIC_BASE_URL?.trim();
+  const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN?.trim();
+
+  if (!bucket) {
+    warnings.push('S3_AVATAR_BUCKET is not set; avatar uploads will fail in production.');
+    return warnings;
+  }
+
+  if (!explicitBase && !cloudfrontDomain) {
+    warnings.push('Neither S3_AVATAR_PUBLIC_BASE_URL nor CLOUDFRONT_DOMAIN is set; avatar URLs will default to https://helixai.live/avatars/...');
+  }
+
+  if (explicitBase && !/^https?:\/\//i.test(explicitBase)) {
+    warnings.push(`S3_AVATAR_PUBLIC_BASE_URL should include protocol (https://...), current value: ${explicitBase}`);
+  }
+
+  if (bucket.includes('avatars') && !explicitBase) {
+    warnings.push(`S3_AVATAR_BUCKET is ${bucket} but URL base comes from CLOUDFRONT_DOMAIN/default; verify CloudFront origin and bucket policy allow reads for /avatars/*.`);
+  }
+
+  if (bucket !== 'helixai-site-helixai-live' && (explicitBase === 'https://helixai.live' || cloudfrontDomain === 'helixai.live')) {
+    warnings.push(`S3_AVATAR_BUCKET is ${bucket} while avatar URL base resolves to helixai.live; verify this domain serves objects from the same bucket.`);
+  }
+
+  return warnings;
 }
 
 /**

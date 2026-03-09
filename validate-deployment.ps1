@@ -13,7 +13,8 @@
 
 param(
   [string]$AwsProfile = '',
-  [string]$AwsRegion  = 'us-east-1'
+  [string]$AwsRegion  = 'us-east-1',
+  [string]$AvatarBucket = 'helixai-site-helixai-live'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -117,9 +118,9 @@ try {
 
 # Check S3 avatar bucket
 try {
-  $s3Bucket = & $awsCmd @awsCommonArgs s3 ls s3://helixai-avatars 2>$null
+  $null = & $awsCmd @awsCommonArgs s3 ls "s3://$AvatarBucket" 2>$null
   if ($LASTEXITCODE -eq 0) {
-    $checks += @{Name="S3 Avatar Bucket"; Status="✓"; Message="helixai-avatars"}
+    $checks += @{Name="S3 Avatar Bucket"; Status="✓"; Message=$AvatarBucket}
   } else {
     $checks += @{Name="S3 Avatar Bucket"; Status="⊘"; Message="Not found (run terraform apply)"}
   }

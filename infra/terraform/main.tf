@@ -493,13 +493,14 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      NODE_ENV         = "production"
-      SECRETS_NAME     = aws_secretsmanager_secret.app.name
-      USE_AWS_SECRETS  = "true"
-      PARAMETER_PREFIX = "/helix/prod"
-      ALLOWED_ORIGINS  = "https://${local.site_fqdn}"
-      S3_AVATAR_BUCKET = aws_s3_bucket.avatars.id
-      AWS_REGION       = var.region
+      NODE_ENV                    = "production"
+      SECRETS_NAME                = aws_secretsmanager_secret.app.name
+      USE_AWS_SECRETS             = "true"
+      PARAMETER_PREFIX            = "/helix/prod"
+      ALLOWED_ORIGINS             = "https://${local.site_fqdn}"
+      S3_AVATAR_BUCKET            = aws_s3_bucket.avatars.id
+      S3_AVATAR_PUBLIC_BASE_URL   = "https://${aws_s3_bucket.avatars.bucket}.s3.amazonaws.com"
+      AWS_REGION                  = var.region
     }
   }
 
@@ -521,7 +522,7 @@ resource "aws_apigatewayv2_api" "http" {
 
   cors_configuration {
     allow_origins = ["https://${local.site_fqdn}"]
-    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers = ["Authorization", "Content-Type"]
   }
 }

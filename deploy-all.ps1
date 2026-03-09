@@ -65,8 +65,10 @@ try {
     docker compose build --pull api web
     Write-Host "Building AWS Lambda image for API (Dockerfile.lambda)..."
   $lambdaTag = "$ImageTag-$LambdaImageSuffix"
-  Write-Host "Building Lambda image (linux/amd64, provenance disabled) tag: $lambdaTag"
-  docker build --pull --provenance=false --platform=linux/amd64 -f Dockerfile.lambda -t helixsource-api-lambda:$lambdaTag .
+  Write-Host "Building Lambda image (single-platform for Lambda compatibility) tag: $lambdaTag"
+  # Use DOCKER_BUILDKIT=0 to avoid multi-platform manifests which Lambda doesn't support
+  $env:DOCKER_BUILDKIT = "0"
+  docker build --pull -f Dockerfile.lambda -t helixsource-api-lambda:$lambdaTag .
   } else {
     Write-Host "Skipping docker build (--SkipDockerBuild)."
   }

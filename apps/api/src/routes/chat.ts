@@ -49,6 +49,29 @@ interface AuthedRequest extends Request {
   user?: { sub: string; role: string };
 }
 
+function buildSystemPrompt(personaSystemPrompt: string): string {
+  const globalPrompt = process.env.GLOBAL_SYSTEM_PROMPT?.trim();
+  if (!globalPrompt) return personaSystemPrompt;
+  return `${globalPrompt}\n\n${personaSystemPrompt}`;
+}
+
+function getProviderApiKey(provider: string): string | undefined {
+  switch (provider.toLowerCase()) {
+    case 'openai':
+      return process.env.OPENAI_API_KEY;
+    case 'anthropic':
+      return process.env.ANTHROPIC_API_KEY;
+    case 'gemini':
+      return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    case 'grok':
+      return process.env.GROK_API_KEY || process.env.XAI_API_KEY;
+    case 'bedrock':
+      return undefined;
+    default:
+      return process.env[`${provider.toUpperCase()}_API_KEY`];
+  }
+}
+
 /**
  * Evaluates an answer against the rubric using an LLM.
  * Returns a truthiness score from 0 to 1.
@@ -172,7 +195,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Build message history
     const messages: Message[] = [
-      { role: 'system', content: persona.systemPrompt }
+      { role: 'system', content: buildSystemPrompt(persona.systemPrompt) }
     ];
 
     for (const msg of conversation.messages) {
@@ -210,15 +233,14 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Get API key
-    const provider = persona.engine.provider.toUpperCase();
-    const apiKeyEnvVar = provider + '_API_KEY';
-    const apiKey = process.env[apiKeyEnvVar];
-    if (!apiKey) {
+    const provider = persona.engine.provider.toLowerCase();
+    const apiKey = getProviderApiKey(provider);
+    if (!apiKey && provider !== 'bedrock') {
       return res.status(500).json({ error: 'API key not configured for ' + persona.engine.provider });
     }
 
     // Call engine
-    const engine = createEngine(persona.engineId as any, { apiKey });
+    const engine = createEngine(persona.engineId as any, apiKey ? { apiKey } : undefined);
     const startTime = Date.now();
     const response = await engine.complete({
       messages,
@@ -365,7 +387,7 @@ router.post('/baton', async (req: Request, res: Response) => {
 
       // Build message history
       const messages: Message[] = [
-        { role: 'system', content: persona.systemPrompt }
+        { role: 'system', content: buildSystemPrompt(persona.systemPrompt) }
       ];
 
       // Add conversation history
@@ -386,15 +408,14 @@ router.post('/baton', async (req: Request, res: Response) => {
       }
 
       // Get API key
-      const provider = persona.engine.provider.toUpperCase();
-      const apiKeyEnvVar = provider + '_API_KEY';
-      const apiKey = process.env[apiKeyEnvVar];
-      if (!apiKey) {
+      const provider = persona.engine.provider.toLowerCase();
+      const apiKey = getProviderApiKey(provider);
+      if (!apiKey && provider !== 'bedrock') {
         return res.status(500).json({ error: 'API key not configured for ' + persona.engine.provider });
       }
 
       // Call engine
-      const engine = createEngine(persona.engineId as any, { apiKey });
+      const engine = createEngine(persona.engineId as any, apiKey ? { apiKey } : undefined);
       const startTime = Date.now();
       const response = await engine.complete({
         messages,
