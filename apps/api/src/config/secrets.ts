@@ -10,6 +10,8 @@ import { SSMClient, GetParameterCommand, GetParametersCommand } from "@aws-sdk/c
  * - DATABASE_URL
  * - OPENAI_API_KEY
  * - ANTHROPIC_API_KEY
+ * - GEMINI_API_KEY
+ * - GROK_API_KEY
  * - ADMIN_EMAIL (optional)
  * - ADMIN_PASSWORD (optional)
  *
@@ -34,12 +36,6 @@ export async function initSecrets(): Promise<void> {
   // Mode 2: SSM Parameter Store
   if (useAwsSecrets) {
     await loadFromParameterStore();
-    return;
-  }
-
-  // If both JWT and DATABASE_URL are already set, skip fetching to avoid extra cold-start cost
-  if (process.env.JWT_SECRET && process.env.DATABASE_URL) {
-    console.log('[secrets] Both JWT_SECRET and DATABASE_URL already set, skipping fetch');
     return;
   }
 
@@ -79,6 +75,38 @@ export async function initSecrets(): Promise<void> {
       process.env.ANTHROPIC_API_KEY = parsed.ANTHROPIC_API_KEY;
       console.log('[secrets] Set ANTHROPIC_API_KEY from Secrets Manager');
     }
+    if (parsed?.GEMINI_API_KEY && !process.env.GEMINI_API_KEY) {
+      process.env.GEMINI_API_KEY = parsed.GEMINI_API_KEY;
+      console.log('[secrets] Set GEMINI_API_KEY from Secrets Manager');
+    }
+    if (parsed?.GOOGLE_API_KEY && !process.env.GOOGLE_API_KEY) {
+      process.env.GOOGLE_API_KEY = parsed.GOOGLE_API_KEY;
+      console.log('[secrets] Set GOOGLE_API_KEY from Secrets Manager');
+    }
+    if (!process.env.GEMINI_API_KEY && process.env.GOOGLE_API_KEY) {
+      process.env.GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
+      console.log('[secrets] Derived GEMINI_API_KEY from GOOGLE_API_KEY');
+    }
+    if (!process.env.GOOGLE_API_KEY && process.env.GEMINI_API_KEY) {
+      process.env.GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
+      console.log('[secrets] Derived GOOGLE_API_KEY from GEMINI_API_KEY');
+    }
+    if (parsed?.GROK_API_KEY && !process.env.GROK_API_KEY) {
+      process.env.GROK_API_KEY = parsed.GROK_API_KEY;
+      console.log('[secrets] Set GROK_API_KEY from Secrets Manager');
+    }
+    if (parsed?.XAI_API_KEY && !process.env.XAI_API_KEY) {
+      process.env.XAI_API_KEY = parsed.XAI_API_KEY;
+      console.log('[secrets] Set XAI_API_KEY from Secrets Manager');
+    }
+    if (!process.env.GROK_API_KEY && process.env.XAI_API_KEY) {
+      process.env.GROK_API_KEY = process.env.XAI_API_KEY;
+      console.log('[secrets] Derived GROK_API_KEY from XAI_API_KEY');
+    }
+    if (!process.env.XAI_API_KEY && process.env.GROK_API_KEY) {
+      process.env.XAI_API_KEY = process.env.GROK_API_KEY;
+      console.log('[secrets] Derived XAI_API_KEY from GROK_API_KEY');
+    }
     if (parsed?.ADMIN_EMAIL && !process.env.ADMIN_EMAIL) {
       process.env.ADMIN_EMAIL = parsed.ADMIN_EMAIL;
     }
@@ -101,7 +129,14 @@ async function loadFromParameterStore(): Promise<void> {
       `${prefix}/JWT_SECRET`,
       `${prefix}/ADMIN_EMAIL`,
       `${prefix}/ADMIN_PASSWORD`,
-      `${prefix}/DATABASE_URL`
+      `${prefix}/DATABASE_URL`,
+      `${prefix}/OPENAI_API_KEY`,
+      `${prefix}/ANTHROPIC_API_KEY`,
+      `${prefix}/GEMINI_API_KEY`,
+      `${prefix}/GOOGLE_API_KEY`,
+      `${prefix}/GROK_API_KEY`,
+      `${prefix}/XAI_API_KEY`,
+      `${prefix}/GLOBAL_SYSTEM_PROMPT`
     ];
 
     const client = new SSMClient({});
@@ -120,6 +155,19 @@ async function loadFromParameterStore(): Promise<void> {
           }
         }
       }
+    }
+
+    if (!process.env.GEMINI_API_KEY && process.env.GOOGLE_API_KEY) {
+      process.env.GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
+    }
+    if (!process.env.GOOGLE_API_KEY && process.env.GEMINI_API_KEY) {
+      process.env.GOOGLE_API_KEY = process.env.GEMINI_API_KEY;
+    }
+    if (!process.env.GROK_API_KEY && process.env.XAI_API_KEY) {
+      process.env.GROK_API_KEY = process.env.XAI_API_KEY;
+    }
+    if (!process.env.XAI_API_KEY && process.env.GROK_API_KEY) {
+      process.env.XAI_API_KEY = process.env.GROK_API_KEY;
     }
   } catch (err) {
     console.error("[secrets] Failed to fetch from Parameter Store:", (err as Error).message);

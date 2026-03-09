@@ -137,6 +137,7 @@ export class OpenAIEngine implements Engine {
 
 // Factory function for common models
 export const createOpenAIEngine = {
+  gpt4o: (config?: EngineConfig) => new OpenAIEngine('gpt-4o', config),
   gpt4: (config?: EngineConfig) => new OpenAIEngine('gpt-4', config),
   gpt4Turbo: (config?: EngineConfig) => new OpenAIEngine('gpt-4-turbo-preview', config),
   gpt4oMini: (config?: EngineConfig) => new OpenAIEngine('gpt-4o-mini', config),
