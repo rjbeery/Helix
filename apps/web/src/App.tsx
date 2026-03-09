@@ -694,6 +694,9 @@ export default function App() {
       <div style={{ marginTop: 24, fontSize: "14px", textAlign: "center" }}>
         <strong>Status:</strong> {status || "—"}
       </div>
+      <div style={{ marginTop: 16, fontSize: "11px", textAlign: "center", color: "#444" }}>
+        v{__APP_VERSION__}
+      </div>
     </div>
   );
 }
