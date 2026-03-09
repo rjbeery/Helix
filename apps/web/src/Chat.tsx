@@ -286,7 +286,10 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
         })
       });
 
-      if (!res.ok) throw new Error('Update failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData?.error || `Update failed (${res.status})`);
+      }
 
       const data = await res.json();
       updatedPersona = data.persona;
@@ -298,7 +301,8 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
       setAvatarFile(null);
     } catch (error) {
       console.error('Failed to update persona:', error);
-      alert('Failed to update persona');
+      const msg = error instanceof Error ? error.message : 'Failed to update persona';
+      alert(`Failed to update persona: ${msg}`);
     }
   }
 
@@ -370,7 +374,10 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
           })
         })
           .then(async (r) => {
-            if (!r.ok) throw new Error('Chat failed');
+            if (!r.ok) {
+              const errData = await r.json().catch(() => ({}));
+              throw new Error(errData?.detail || errData?.error || `Chat failed (${r.status})`);
+            }
             const data = await r.json();
             setConversationIds(prev => ({ ...prev, [pid]: data.conversationId }));
             setMessages(prev => [...prev, { role: 'assistant', content: data.message, personaId: pid }]);
@@ -378,7 +385,8 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
           .catch((err) => {
             console.error(err);
             const p = personas.find(pp => pp.id === pid);
-            setMessages(prev => [...prev, { role: 'assistant', content: (p ? p.label + ': ' : '') + 'Sorry, something went wrong.', personaId: pid }]);
+            const errMsg = err?.message || 'Something went wrong';
+            setMessages(prev => [...prev, { role: 'assistant', content: (p ? p.label + ': ' : '') + `Error: ${errMsg}`, personaId: pid }]);
           })
           .finally(() => setLoadingCount((c) => Math.max(0, c - 1)));
       }
@@ -399,7 +407,10 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
         })
       })
         .then(async (r) => {
-          if (!r.ok) throw new Error('Baton chat failed');
+          if (!r.ok) {
+            const errData = await r.json().catch(() => ({}));
+            throw new Error(errData?.detail || errData?.error || `Baton chat failed (${r.status})`);
+          }
           const data = await r.json();
           
           // Update conversation IDs
