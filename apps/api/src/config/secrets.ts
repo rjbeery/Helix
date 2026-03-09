@@ -140,19 +140,24 @@ async function loadFromParameterStore(): Promise<void> {
     ];
 
     const client = new SSMClient({});
-    const result = await client.send(new GetParametersCommand({
-      Names: parameterNames,
-      WithDecryption: true
-    }));
 
-    if (result.Parameters) {
-      for (const param of result.Parameters) {
-        const key = param.Name?.split('/').pop(); // Get last part of path
-        if (key && param.Value) {
-          // Set env only if missing to allow overrides
-          if (!process.env[key]) {
-            process.env[key] = param.Value;
-          }
+    // SSM GetParameters limit is 10 names per call — batch if needed
+    const allParameters: { Name?: string; Value?: string }[] = [];
+    for (let i = 0; i < parameterNames.length; i += 10) {
+      const chunk = parameterNames.slice(i, i + 10);
+      const result = await client.send(new GetParametersCommand({
+        Names: chunk,
+        WithDecryption: true
+      }));
+      if (result.Parameters) allParameters.push(...result.Parameters);
+    }
+
+    for (const param of allParameters) {
+      const key = param.Name?.split('/').pop(); // Get last part of path
+      if (key && param.Value) {
+        // Set env only if missing to allow overrides
+        if (!process.env[key]) {
+          process.env[key] = param.Value;
         }
       }
     }
