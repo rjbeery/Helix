@@ -521,9 +521,11 @@ resource "aws_apigatewayv2_api" "http" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["https://${local.site_fqdn}"]
-    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    allow_headers = ["Authorization", "Content-Type"]
+    allow_origins     = ["https://${local.site_fqdn}"]
+    allow_methods     = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    allow_headers     = ["Authorization", "Content-Type"]
+    allow_credentials = true
+    max_age           = 300
   }
 }
 
