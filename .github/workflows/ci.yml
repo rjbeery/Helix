@@ -133,27 +133,27 @@ jobs:
         env:
           ECR_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           ECR_REPO: ${{ secrets.ECR_API_REPO }}
-          IMAGE_TAG: ${{ github.sha }}-lambda
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -f Dockerfile.lambda \
             -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPO:latest-lambda \
+            -t $ECR_REGISTRY/$ECR_REPO:latest \
             .
 
       - name: Push to ECR
         env:
           ECR_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           ECR_REPO: ${{ secrets.ECR_API_REPO }}
-          IMAGE_TAG: ${{ github.sha }}-lambda
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPO:latest-lambda
+          docker push $ECR_REGISTRY/$ECR_REPO:latest
 
       - name: Update Lambda function
         env:
           ECR_REGISTRY: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
           ECR_REPO: ${{ secrets.ECR_API_REPO }}
-          IMAGE_TAG: ${{ github.sha }}-lambda
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           aws lambda update-function-code \
             --function-name helixai-api \
