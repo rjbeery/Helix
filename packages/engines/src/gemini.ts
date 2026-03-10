@@ -184,8 +184,8 @@ export class GeminiEngine implements Engine {
 
 // Factory function for common Gemini models
 export const createGeminiEngine = {
-  gemini15Pro: (config?: EngineConfig) => new GeminiEngine('gemini-1.5-pro-latest', config),
-  gemini15Flash: (config?: EngineConfig) => new GeminiEngine('gemini-1.5-flash-latest', config),
-  gemini15Flash8B: (config?: EngineConfig) => new GeminiEngine('gemini-1.5-flash-8b-latest', config),
-  gemini2Flash: (config?: EngineConfig) => new GeminiEngine('gemini-2.0-flash', config),
+  gemini15Pro: (config?: EngineConfig) => new GeminiEngine(process.env.MODEL_GEMINI_PRO || 'gemini-1.5-pro-latest', config),
+  gemini15Flash: (config?: EngineConfig) => new GeminiEngine(process.env.MODEL_GEMINI_FLASH || 'gemini-1.5-flash-latest', config),
+  gemini15Flash8B: (config?: EngineConfig) => new GeminiEngine(process.env.MODEL_GEMINI_FLASH_8B || 'gemini-1.5-flash-8b-latest', config),
+  gemini2Flash: (config?: EngineConfig) => new GeminiEngine(process.env.MODEL_GEMINI_2_FLASH || 'gemini-2.0-flash', config),
 };

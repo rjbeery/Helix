@@ -169,12 +169,12 @@ export class AnthropicEngine implements Engine {
 
 // Factory function for common models
 export const createAnthropicEngine = {
-  claude3Opus: (config?: EngineConfig) => new AnthropicEngine('claude-3-opus-20240229', config),
-  claude3Sonnet: (config?: EngineConfig) => new AnthropicEngine('claude-3-sonnet-20240229', config),
-  claude3Haiku: (config?: EngineConfig) => new AnthropicEngine('claude-3-haiku-20240307', config),
-  claude35Sonnet: (config?: EngineConfig) => new AnthropicEngine('claude-3-5-sonnet-20241022', config),
-  claude35Opus: (config?: EngineConfig) => new AnthropicEngine('claude-3-opus-20240229', config),
-  claude4Opus: (config?: EngineConfig) => new AnthropicEngine('claude-opus-4-6', config),
-  claude4Sonnet: (config?: EngineConfig) => new AnthropicEngine('claude-sonnet-4-6', config),
-  claude4Haiku: (config?: EngineConfig) => new AnthropicEngine('claude-haiku-4-5-20251001', config),
+  claude3Opus: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE3_OPUS || 'claude-3-opus-20240229', config),
+  claude3Sonnet: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE3_SONNET || 'claude-3-sonnet-20240229', config),
+  claude3Haiku: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE3_HAIKU || 'claude-3-haiku-20240307', config),
+  claude35Sonnet: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE35_SONNET || 'claude-3-5-sonnet-20241022', config),
+  claude35Opus: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE35_OPUS || 'claude-3-opus-20240229', config),
+  claude4Opus: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE4_OPUS || 'claude-opus-4-6', config),
+  claude4Sonnet: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE4_SONNET || 'claude-sonnet-4-6', config),
+  claude4Haiku: (config?: EngineConfig) => new AnthropicEngine(process.env.MODEL_CLAUDE4_HAIKU || 'claude-haiku-4-5-20251001', config),
 };

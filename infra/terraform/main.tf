@@ -501,6 +501,26 @@ resource "aws_lambda_function" "api" {
       S3_AVATAR_BUCKET            = aws_s3_bucket.avatars.id
       S3_AVATAR_PUBLIC_BASE_URL   = "https://${aws_s3_bucket.avatars.bucket}.s3.amazonaws.com"
       AWS_REGION                  = var.region
+
+      # Model overrides — edit here + terraform apply to upgrade without a redeploy
+      MODEL_GPT4O                 = "gpt-4o"
+      MODEL_GPT4                  = "gpt-4"
+      MODEL_GPT4_TURBO            = "gpt-4-turbo-preview"
+      MODEL_GPT4O_MINI            = "gpt-4o-mini"
+      MODEL_GPT35_TURBO           = "gpt-3.5-turbo"
+      MODEL_CLAUDE4_OPUS          = "claude-opus-4-6"
+      MODEL_CLAUDE4_SONNET        = "claude-sonnet-4-6"
+      MODEL_CLAUDE4_HAIKU         = "claude-haiku-4-5-20251001"
+      MODEL_CLAUDE35_SONNET       = "claude-3-5-sonnet-20241022"
+      MODEL_CLAUDE3_OPUS          = "claude-3-opus-20240229"
+      MODEL_CLAUDE3_SONNET        = "claude-3-sonnet-20240229"
+      MODEL_CLAUDE3_HAIKU         = "claude-3-haiku-20240307"
+      MODEL_GEMINI_PRO            = "gemini-1.5-pro-latest"
+      MODEL_GEMINI_FLASH          = "gemini-1.5-flash-latest"
+      MODEL_GEMINI_FLASH_8B       = "gemini-1.5-flash-8b-latest"
+      MODEL_GEMINI_2_FLASH        = "gemini-2.0-flash"
+      MODEL_GROK_2                = "grok-2"
+      MODEL_GROK_2_LATEST         = "grok-2-latest"
     }
   }
 

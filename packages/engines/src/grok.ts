@@ -135,6 +135,6 @@ export class GrokEngine implements Engine {
 }
 
 export const createGrokEngine = {
-  grok2: (config?: EngineConfig) => new GrokEngine('grok-2', config),
-  grok2Latest: (config?: EngineConfig) => new GrokEngine('grok-2-latest', config),
+  grok2: (config?: EngineConfig) => new GrokEngine(process.env.MODEL_GROK_2 || 'grok-2', config),
+  grok2Latest: (config?: EngineConfig) => new GrokEngine(process.env.MODEL_GROK_2_LATEST || 'grok-2-latest', config),
 };
