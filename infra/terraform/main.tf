@@ -500,7 +500,6 @@ resource "aws_lambda_function" "api" {
       ALLOWED_ORIGINS             = "https://${local.site_fqdn}"
       S3_AVATAR_BUCKET            = aws_s3_bucket.avatars.id
       S3_AVATAR_PUBLIC_BASE_URL   = "https://${aws_s3_bucket.avatars.bucket}.s3.amazonaws.com"
-      AWS_REGION                  = var.region
 
       # Model overrides — edit here + terraform apply to upgrade without a redeploy
       MODEL_GPT4O                 = "gpt-4o"
