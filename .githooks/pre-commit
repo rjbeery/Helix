@@ -1,4 +1,15 @@
 #!/bin/sh
+
+echo "Updating repo map..."
+
+powershell -ExecutionPolicy Bypass -File ./scripts/update-repo-map.ps1
+if [ $? -ne 0 ]; then
+  echo "Repo map update failed."
+  exit 1
+fi
+
+git add docs/REPO_MAP.md
+#!/bin/sh
 # Pre-commit hook: run staged secret scan
 
 ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -24,3 +35,4 @@ if [ $status -ne 0 ]; then
   exit $status
 fi
 exit 0
+

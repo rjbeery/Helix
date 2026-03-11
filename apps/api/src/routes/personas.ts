@@ -23,9 +23,9 @@ router.get('/', async (req: Request, res: Response) => {
   const userRole = (req as AuthedRequest).user?.role;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Admin can see all personas; users see their own plus global personas
+    // All users (including admins) see their own personas plus global personas
   const personas = await db().persona.findMany({
-      where: userRole === 'admin' ? {} : {
+      where: {
         OR: [
           { userId },
           { isGlobal: true }
