@@ -11,7 +11,8 @@
     "remove-bom": "node ./scripts/remove-bom.js",
     "install-hooks": "sh ./scripts/install-githooks.sh",
     "setup-prod-env": "pwsh -File ./scripts/setup-prod-env.ps1",
-    "check-secrets-history": "pwsh -File ./scripts/check-history-secrets.ps1"
+    "check-secrets-history": "pwsh -File ./scripts/check-history-secrets.ps1",
+    "repo:map": "powershell -ExecutionPolicy Bypass -File .\\scripts\\update-repo-map.ps1"
   },
   "devDependencies": {
     "@types/node": "^24.8.1",

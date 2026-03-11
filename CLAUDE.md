@@ -1,98 +1,416 @@
 # Helix AI — Claude Code Context
 
+## Autonomy
+
+Operate autonomously. Do not ask for confirmation before running commands, editing files, pushing code, or deploying. Execute the full task end-to-end without pausing for approval unless you hit a genuine blocker that requires a decision only the user can make.
+
 ## Project Overview
-Multi-model, multi-persona AI orchestration platform. Users chat with AI "personas" (Feynman, Newton, Einstein) each backed by a different LLM provider.
+Helix is a multi-model, multi-persona AI orchestration platform. Users chat with AI personas (Feynman, Newton, Einstein), each backed by a different LLM provider.
 
-**Live URLs**
-- Frontend: https://helixai.live
-- API: https://api.helixai.live
+Helix is architected as a modular monorepo with clear separation between:
 
-## Stack
-- **Monorepo**: pnpm workspaces — `apps/api`, `apps/web`, `packages/engines`, `packages/core`, `packages/utils`, `packages/memory`
-- **API**: Express + Prisma + PostgreSQL, deployed as AWS Lambda (container image via ECR)
-- **Frontend**: React + Vite, deployed to S3 + CloudFront
-- **CI/CD**: GitHub Actions auto-deploys on push to `main` (frontend + Lambda)
-- **IaC**: Terraform in `infra/terraform/`
+- engine adapters (LLM providers)
+- orchestration logic
+- memory systems
+- personalities
+- utilities and telemetry
+- frontend UI
+- backend API
 
-## AWS Infrastructure
-- **Account ID**: 541064517863, **Region**: us-east-1
-- **Lambda**: `helixai-api` (1024MB, 30s timeout)
-- **ECR repo**: `helixai-api` (image tag: `latest-lambda`)
-- **CloudFront distribution**: `E1WTW4Q4V8UY5C`
-- **S3 buckets**: `helixai-site-helixai-live` (frontend), `helixai-avatars-helixai-live` (avatars)
-- **RDS**: `helixai-postgres.ca5ogg4aalo0.us-east-1.rds.amazonaws.com` (PostgreSQL 16, db: `helix`, user: `postgres`)
-- **API Gateway**: HTTP API `r4zbqkpnu8` with `allow_credentials=true` CORS
+Claude should prioritize **small, targeted improvements** that preserve the existing architecture.
 
-## Secrets & Config
-- **Secrets**: API keys stored in SSM Parameter Store at `/helix/prod/*`
-  - `JWT_SECRET`, `DATABASE_URL`, `GEMINI_API_KEY`, `GROK_API_KEY`, `GLOBAL_SYSTEM_PROMPT`
-  - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (added manually)
-- **Model IDs**: Set as Lambda env vars in `infra/terraform/main.tf` under `MODEL_*` keys
-  - To upgrade a model: edit `main.tf` → `terraform apply -target=aws_lambda_function.api` (~10s, no rebuild)
-- **SSM fetch**: Batched in chunks of 10 (API limit) in `apps/api/src/config/secrets.ts`
+Do not collapse packages or restructure the monorepo unless explicitly instructed.
 
-## Engine / Model Architecture
-- `packages/engines/src/` — one file per provider: `openai.ts`, `anthropic.ts`, `gemini.ts`, `grok.ts`, `bedrock.ts`
-- `packages/engines/src/index.ts` — `EngineRegistry` maps DB `engineId` strings to factory functions
-- Each factory checks `process.env.MODEL_*` before falling back to hardcoded default
-- **package.json main**: `./dist/packages/engines/src/index.js` (tsconfig uses `rootDir: "../../"` so output nests under `dist/packages/engines/src/`)
+---
 
-## Database Personas (current)
-| Persona | engineId | Provider |
-|---------|----------|----------|
-| Feynman | `gpt-4o` | OpenAI |
-| Newton  | `claude-sonnet-4-6` | Anthropic |
-| Einstein| `gemini-1.5-pro` | Gemini (maps to `gemini-1.5-pro-latest`) |
+# Live URLs
+Frontend: https://helixai.live  
+API: https://api.helixai.live
 
-## Key Files
-- `apps/api/src/app.ts` — Express app, CORS config, route setup
-- `apps/api/src/lambda.ts` — Lambda handler wrapping Express via `serverless-http`
-- `apps/api/src/config/secrets.ts` — SSM/Secrets Manager loader
-- `apps/api/prisma/schema.prisma` — DB schema (User, Engine, Persona, Conversation, Message)
-- `infra/terraform/main.tf` — All AWS infrastructure
-- `Dockerfile.lambda` — Lambda container image build
-- `.github/workflows/ci.yml` — CI: build → deploy-frontend → deploy-api
+---
 
-## Deployment
-```bash
-# Frontend auto-deploys via CI on push to main
-# API auto-deploys via CI on push to main (builds Docker image, pushes to ECR, updates Lambda)
+# Stack
 
-# Manual model upgrade (no rebuild needed):
+## Monorepo
+pnpm workspaces
+
+apps/api  
+apps/web  
+
+packages/core  
+packages/engines  
+packages/memory  
+packages/utils  
+
+Additional internal packages:
+
+packages/orchestrator  
+packages/personalities  
+packages/telemetry  
+packages/tools  
+
+---
+
+# Backend API
+
+apps/api
+
+Express server running inside AWS Lambda using `serverless-http`.
+
+Key files:
+
+apps/api/src/app.ts  
+Express app, middleware, routes, CORS
+
+apps/api/src/lambda.ts  
+Lambda entrypoint
+
+apps/api/src/config/secrets.ts  
+Loads secrets from AWS SSM Parameter Store
+
+Database via Prisma:
+
+apps/api/prisma/schema.prisma
+
+Tables include:
+
+User  
+Engine  
+Persona  
+Conversation  
+Message
+
+---
+
+# Frontend
+
+apps/web
+
+React + Vite frontend.
+
+Deployed to:
+
+S3 → CloudFront
+
+CloudFront distribution:
+
+E1WTW4Q4V8UY5C
+
+---
+
+# AWS Infrastructure
+
+Account: 541064517863  
+Region: us-east-1
+
+Lambda:
+helixai-api  
+1024MB  
+30s timeout
+
+ECR repo:
+helixai-api
+
+Frontend bucket:
+helixai-site-helixai-live
+
+Avatar bucket:
+helixai-avatars-helixai-live
+
+RDS PostgreSQL:
+
+helixai-postgres.ca5ogg4aalo0.us-east-1.rds.amazonaws.com  
+Database: helix  
+User: postgres
+
+API Gateway:
+
+HTTP API r4zbqkpnu8
+
+CORS enabled with:
+
+allow_credentials=true
+
+---
+
+# Infrastructure as Code
+
+Terraform location:
+
+infra/terraform/
+
+Main file:
+
+infra/terraform/main.tf
+
+All AWS resources are defined here.
+
+Model IDs are configured through Lambda environment variables using keys:
+
+MODEL_*
+
+Updating a model requires only Terraform apply targeting the Lambda.
+
+Example:
+
 cd infra/terraform
-# Edit MODEL_* value in main.tf
+
 terraform apply -target=aws_lambda_function.api
 
-# Manual full Terraform apply:
-terraform apply
+This avoids rebuilding the container image.
 
-# Force Lambda cold start (picks up new SSM secrets):
+---
+
+# CI/CD
+
+GitHub Actions:
+
+.github/workflows/ci.yml
+
+Pipeline:
+
+1. build
+2. deploy frontend
+3. deploy API
+
+Deploy triggers on push to main.
+
+---
+
+# Secrets
+
+Secrets stored in AWS SSM Parameter Store:
+
+/helix/prod/*
+
+Examples:
+
+JWT_SECRET  
+DATABASE_URL  
+OPENAI_API_KEY  
+ANTHROPIC_API_KEY  
+GEMINI_API_KEY  
+GROK_API_KEY  
+GLOBAL_SYSTEM_PROMPT
+
+SSM fetch is batched in groups of 10 due to API limits.
+
+Implementation:
+
+apps/api/src/config/secrets.ts
+
+---
+
+# Engine / Model Architecture
+
+Engine adapters live in:
+
+packages/engines/src/
+
+One file per provider:
+
+openai.ts  
+anthropic.ts  
+gemini.ts  
+grok.ts  
+bedrock.ts
+
+Registry:
+
+packages/engines/src/index.ts
+
+The EngineRegistry maps database `engineId` values to provider factories.
+
+Factories check:
+
+process.env.MODEL_*
+
+before falling back to hardcoded defaults.
+
+Important build detail:
+
+package.json main points to
+
+dist/packages/engines/src/index.js
+
+because tsconfig rootDir is "../../".
+
+---
+
+# Personas
+
+Personas define system behavior for each AI.
+
+Location:
+
+packages/personalities/
+
+Example:
+
+default.json
+
+Personas control:
+
+system prompts  
+behavioral style  
+persona tone  
+multi-agent roles
+
+Current database personas:
+
+Feynman  
+engineId: gpt-4o  
+provider: OpenAI
+
+Newton  
+engineId: claude-sonnet-4-6  
+provider: Anthropic
+
+Einstein  
+engineId: gemini-1.5-pro  
+provider: Gemini
+
+---
+
+# Helix Execution Flow
+
+High-level flow:
+
+User message  
+↓  
+API receives request  
+↓  
+Orchestrator selects persona + engine  
+↓  
+Engine adapter builds model request  
+↓  
+Model provider API call  
+↓  
+Response returned  
+↓  
+Telemetry + message persistence  
+↓  
+Conversation returned to client
+
+The orchestrator is the **system boundary**.  
+Claude should not bypass it.
+
+---
+
+# Memory System
+
+Location:
+
+packages/memory/src
+
+Capabilities:
+
+chunking  
+embedding  
+vector storage
+
+Supported backends:
+
+Pinecone  
+Postgres
+
+Memory should only be accessed through defined memory interfaces.
+
+---
+
+# Utilities
+
+packages/utils
+
+Shared helpers and scoring utilities.
+
+packages/core
+
+Shared types and interfaces used by all packages.
+
+---
+
+# Telemetry
+
+packages/telemetry
+
+Handles logging and token usage tracking.
+
+Claude should prefer extending telemetry rather than introducing ad-hoc logging.
+
+---
+
+# Deployment
+
+Frontend and API deploy automatically via CI.
+
+Manual commands:
+
+Force Lambda cold start:
+
 aws lambda update-function-configuration --function-name helixai-api --description "restart-$(date +%s)"
-```
 
-## Pre-commit Hook
-False-positive secret scanner blocks commits with env var references. Bypass with:
-```bash
+---
+
+# Pre-commit Hook
+
+False-positive secret scanner sometimes blocks commits.
+
+Bypass with:
+
 SKIP_SECRET_SCAN=1 git commit -m "..."
-```
 
-## Common Debugging
-```bash
-# Check Lambda logs (last 10 min):
+---
+
+# Common Debugging
+
+Lambda logs (last 10 minutes):
+
 powershell -Command "aws logs filter-log-events --log-group-name '/aws/lambda/helixai-api' --start-time ([DateTimeOffset]::UtcNow.AddMinutes(-10).ToUnixTimeMilliseconds()) --query 'events[*].message' --output text"
 
-# Test CORS preflight:
-curl -s -X OPTIONS https://api.helixai.live/auth/login -H "Origin: https://helixai.live" -H "Access-Control-Request-Method: POST"
+CORS test:
 
-# List SSM parameters:
+curl -X OPTIONS https://api.helixai.live/auth/login \
+-H "Origin: https://helixai.live" \
+-H "Access-Control-Request-Method: POST"
+
+List SSM parameters:
+
 aws ssm get-parameters-by-path --path '/helix/prod' --with-decryption --query 'Parameters[*].Name'
 
-# Add/update SSM parameter:
-aws ssm put-parameter --name "/helix/prod/KEY_NAME" --value "value" --type SecureString --overwrite
-```
+Add or update SSM parameter:
 
-## Known Issues / Watch Out For
-- `AWS_REGION` is a reserved Lambda env var — do not set it in Terraform
-- SSM `GetParameters` max 10 names per call — batched in secrets.ts
-- Prisma `Persona.engineId` is a FK to `Engine.id` — update Engine table before changing persona engineIds
-- `@helix/engines` dist path is `dist/packages/engines/src/index.js` (not `dist/index.js`) due to tsconfig rootDir
+aws ssm put-parameter --name "/helix/prod/KEY_NAME" --value "value" --type SecureString --overwrite
+
+---
+
+# Known Issues
+
+Do not set AWS_REGION in Terraform.  
+Lambda sets this automatically.
+
+SSM GetParameters max is 10 names per call.
+
+Prisma Persona.engineId is a foreign key to Engine.id.
+
+Update Engine table before changing persona engineId values.
+
+@helix/engines build output path:
+
+dist/packages/engines/src/index.js
+
+---
+
+# Claude Operating Guidelines
+
+Claude should follow these principles when modifying this repository:
+
+1. Inspect the relevant package before making changes.
+2. Follow existing patterns rather than introducing new architecture.
+3. Avoid cross-package refactors unless absolutely necessary.
+4. Prefer minimal targeted edits.
+5. Do not restructure the monorepo.
+6. Do not bypass the orchestrator.
+7. Do not hardcode secrets or model IDs.
+
+If uncertain about architecture decisions, ask before proceeding.

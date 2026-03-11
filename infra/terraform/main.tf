@@ -514,7 +514,7 @@ resource "aws_lambda_function" "api" {
       MODEL_CLAUDE3_OPUS          = "claude-3-opus-20240229"
       MODEL_CLAUDE3_SONNET        = "claude-3-sonnet-20240229"
       MODEL_CLAUDE3_HAIKU         = "claude-3-haiku-20240307"
-      MODEL_GEMINI_PRO            = "gemini-1.5-pro-latest"
+      MODEL_GEMINI_PRO            = "gemini-2.5-flash"
       MODEL_GEMINI_FLASH          = "gemini-1.5-flash-latest"
       MODEL_GEMINI_FLASH_8B       = "gemini-1.5-flash-8b-latest"
       MODEL_GEMINI_2_FLASH        = "gemini-2.0-flash"
