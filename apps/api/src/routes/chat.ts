@@ -402,8 +402,33 @@ router.post('/baton', async (req: Request, res: Response) => {
       if (i === 0) {
         messages.push({ role: 'user', content: message });
       } else {
-        // Subsequent personas: review previous answer
-        const reviewPrompt = `Original question: ${message}\n\nPrevious answer:\n${currentAnswer}\n\nReview this answer. If it's good, respond with "APPROVE: [reason]". If you have a significantly better or clearer version, respond with "REVISE:" followed by your improved answer.`;
+        // Subsequent personas: self-evaluate then review
+        // Each persona scores the current answer against the truthiness rubric and decides
+        // whether to engage. If their weighted score meets the threshold, they approve and
+        // the chain stops. Otherwise they revise.
+        const acceptanceThreshold = userLimits.truthinessThreshold + DELTA_GAIN;
+        const reviewPrompt = `Original question: ${message}
+
+Current answer:
+${currentAnswer}
+
+Score this answer on each dimension from 0.0 to 1.0:
+  Relevance    (weight 0.25): Does it address the actual question?
+  Correctness  (weight 0.30): Is it factually accurate and logically sound?
+  Completeness (weight 0.20): Does it cover all necessary details?
+  Clarity      (weight 0.15): Is it clear and easy to understand?
+  Brevity      (weight 0.10): Is it appropriately concise?
+
+Compute the weighted score = (0.25 × Relevance) + (0.30 × Correctness) + (0.20 × Completeness) + (0.15 × Clarity) + (0.10 × Brevity).
+
+The acceptance threshold is ${acceptanceThreshold.toFixed(2)}.
+
+If your weighted score >= ${acceptanceThreshold.toFixed(2)}, respond with:
+APPROVE: <your one-sentence reason>
+
+If your weighted score < ${acceptanceThreshold.toFixed(2)}, respond with:
+REVISE:
+<your improved answer here>`;
         messages.push({ role: 'user', content: reviewPrompt });
       }
 
@@ -472,17 +497,18 @@ router.post('/baton', async (req: Request, res: Response) => {
         action = 'initial';
         currentAnswer = response.text;
       } else {
-        // Check if approved or revised
+        // Each reviewer self-scores against the rubric and either approves or revises
         if (response.text.startsWith('APPROVE:')) {
           action = 'approved';
           displayContent = response.text.replace(/^APPROVE:\s*/, '');
-          // Keep current answer
+          // Persona judged threshold met — stop the chain
+          metTruthiness = true;
         } else if (response.text.startsWith('REVISE:')) {
           action = 'revised';
           displayContent = response.text.replace(/^REVISE:\s*/, '');
-          currentAnswer = displayContent; // Update answer
+          currentAnswer = displayContent;
         } else {
-          // If no prefix, treat as revised
+          // No prefix — treat as revised
           action = 'revised';
           currentAnswer = response.text;
         }
@@ -493,22 +519,10 @@ router.post('/baton', async (req: Request, res: Response) => {
         content: displayContent,
         action
       });
-    }
 
-    // Evaluate truthiness once against the final answer to avoid per-pass LLM overhead
-    // (per-pass evaluation caused Lambda timeouts on chains with 2+ personas)
-    if (batonChain.length > 0) {
-      const lastEngine = (() => {
-        const lastPersona = sortedPersonas[batonChain.length - 1];
-        const provider = lastPersona.engine.provider.toLowerCase();
-        const apiKey = getProviderApiKey(provider);
-        return createEngine(lastPersona.engineId as any, apiKey ? { apiKey } : undefined);
-      })();
-      const evaluation = await evaluateTruthiness(lastEngine, message, currentAnswer);
-      const acceptanceThreshold = userLimits.truthinessThreshold + DELTA_GAIN;
-      console.log(`Final truthiness score = ${evaluation.score.toFixed(3)} (threshold: ${acceptanceThreshold.toFixed(3)})`);
-      if (evaluation.score >= acceptanceThreshold) {
-        metTruthiness = true;
+      if (metTruthiness) {
+        console.log(`Baton chain stopped at pass ${i + 1}: persona approved the answer as meeting threshold.`);
+        break;
       }
     }
 
