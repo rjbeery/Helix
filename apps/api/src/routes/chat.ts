@@ -494,8 +494,9 @@ router.post('/baton', async (req: Request, res: Response) => {
         action
       });
 
-      // Evaluate truthiness after each response
+      // Evaluate truthiness after each response (skip first — always pass the baton at least once)
       // If the answer is good enough, stop the chain early
+      if (i === 0) continue;
       const evaluation = await evaluateTruthiness(engine, message, currentAnswer);
   const acceptanceThreshold = userLimits.truthinessThreshold + DELTA_GAIN;
 
