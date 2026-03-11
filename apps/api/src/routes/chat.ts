@@ -138,6 +138,13 @@ Respond ONLY with a JSON object in this exact format:
   }
 }
 
+// GET /api/chat/baton-url - Returns the Lambda Function URL for baton requests (bypasses API GW 29 s limit)
+router.get('/baton-url', (req: Request, res: Response) => {
+  const url = process.env.BATON_FUNCTION_URL;
+  if (!url) return res.status(503).json({ error: 'Baton Function URL not configured' });
+  return res.json({ url });
+});
+
 // POST /api/chat - Send message, get completion
 router.post('/', async (req: Request, res: Response) => {
   try {

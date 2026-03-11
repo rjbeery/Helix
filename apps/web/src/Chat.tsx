@@ -55,6 +55,7 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
   const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
   const [multiAgentMode, setMultiAgentMode] = useState<'panel' | 'baton'>('panel');
   const [vectorizingIndex, setVectorizingIndex] = useState<number | null>(null);
+  const [batonUrl, setBatonUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,6 +81,14 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
       .then(r => r.json())
       .then(data => setEngines(data.engines || []))
       .catch(console.error);
+
+    // Fetch baton Function URL (bypasses API Gateway 29 s timeout)
+    fetch(apiBase + '/api/chat/baton-url', {
+      headers: { Authorization: 'Bearer ' + token }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.url) setBatonUrl(data.url); })
+      .catch(() => {});
   }, [token, apiBase]);
 
   useEffect(() => {
@@ -394,7 +403,9 @@ export default function Chat({ token, apiBase, maxBatonPasses = 5 }: ChatProps) 
     // Baton mode: sequential refinement
     else if (multiAgentMode === 'baton') {
       setLoadingCount(1);
-      fetch(apiBase + '/api/chat/baton', {
+      // Use Function URL if available (bypasses API Gateway's 29 s hard timeout)
+      const batonEndpoint = (batonUrl ?? apiBase) + '/api/chat/baton';
+      fetch(batonEndpoint, {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer ' + token,

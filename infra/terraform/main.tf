@@ -487,7 +487,7 @@ resource "aws_lambda_function" "api" {
   image_uri = "${aws_ecr_repository.api.repository_url}:latest-lambda"
 
   role          = aws_iam_role.lambda_exec.arn
-  timeout       = 30
+  timeout       = 180
   memory_size   = 1024
   architectures = ["x86_64"]
 
@@ -620,6 +620,34 @@ resource "aws_route53_record" "api_alias_ipv6" {
 }
 
 #####################################
+# Lambda Function URL (baton mode — bypasses API GW 29 s hard limit)
+#####################################
+
+resource "aws_lambda_function_url" "baton" {
+  function_name      = aws_lambda_function.api.function_name
+  authorization_type = "NONE"
+
+  cors {
+    allow_credentials = true
+    allow_origins     = ["https://${local.site_fqdn}"]
+    allow_methods     = ["*"]
+    allow_headers     = ["Authorization", "Content-Type"]
+    max_age           = 300
+  }
+}
+
+# Store Function URL in SSM so the Lambda can read it via the existing secrets loader
+resource "aws_ssm_parameter" "baton_function_url" {
+  name  = "/helix/prod/BATON_FUNCTION_URL"
+  type  = "String"
+  value = aws_lambda_function_url.baton.function_url
+
+  lifecycle {
+    ignore_changes = [value]  # prevent drift if manually overridden
+  }
+}
+
+#####################################
 # Outputs
 #####################################
 
@@ -631,3 +659,4 @@ output "ecr_repo"          { value = aws_ecr_repository.api.repository_url }
 output "rds_endpoint"      { value = aws_db_instance.postgres.address }
 output "rds_database_name" { value = aws_db_instance.postgres.db_name }
 output "s3_avatar_bucket"  { value = aws_s3_bucket.avatars.id }
+output "baton_function_url" { value = aws_lambda_function_url.baton.function_url }
