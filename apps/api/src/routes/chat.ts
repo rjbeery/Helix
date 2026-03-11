@@ -493,21 +493,22 @@ router.post('/baton', async (req: Request, res: Response) => {
         content: displayContent,
         action
       });
+    }
 
-      // Evaluate truthiness after each response (skip first — always pass the baton at least once)
-      // If the answer is good enough, stop the chain early
-      if (i === 0) continue;
-      const evaluation = await evaluateTruthiness(engine, message, currentAnswer);
-  const acceptanceThreshold = userLimits.truthinessThreshold + DELTA_GAIN;
-
-      console.log(`Baton pass ${i + 1}: Truthiness score = ${evaluation.score.toFixed(3)} (threshold: ${acceptanceThreshold.toFixed(3)})`);
-      console.log(`  Rubric: R=${evaluation.rubric.relevance.toFixed(2)} C=${evaluation.rubric.correctness.toFixed(2)} Co=${evaluation.rubric.completeness.toFixed(2)} Cl=${evaluation.rubric.clarity.toFixed(2)} B=${evaluation.rubric.brevity.toFixed(2)}`);
-
-      // If score meets threshold, stop the chain
+    // Evaluate truthiness once against the final answer to avoid per-pass LLM overhead
+    // (per-pass evaluation caused Lambda timeouts on chains with 2+ personas)
+    if (batonChain.length > 0) {
+      const lastEngine = (() => {
+        const lastPersona = sortedPersonas[batonChain.length - 1];
+        const provider = lastPersona.engine.provider.toLowerCase();
+        const apiKey = getProviderApiKey(provider);
+        return createEngine(lastPersona.engineId as any, apiKey ? { apiKey } : undefined);
+      })();
+      const evaluation = await evaluateTruthiness(lastEngine, message, currentAnswer);
+      const acceptanceThreshold = userLimits.truthinessThreshold + DELTA_GAIN;
+      console.log(`Final truthiness score = ${evaluation.score.toFixed(3)} (threshold: ${acceptanceThreshold.toFixed(3)})`);
       if (evaluation.score >= acceptanceThreshold) {
-        console.log(`Answer meets truthiness threshold. Stopping baton chain at pass ${i + 1} of ${sortedPersonas.length}.`);
         metTruthiness = true;
-        break;
       }
     }
 
